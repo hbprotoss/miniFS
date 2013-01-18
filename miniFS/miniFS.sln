@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniFS", "miniFS\miniFS.vcxproj", "{0009F646-2741-429E-8E83-A0EBDF8E0762}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "create", "..\create\create\create.vcxproj", "{904BF1EC-44B3-490B-8799-9D42BA409327}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0009F646-2741-429E-8E83-A0EBDF8E0762}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0009F646-2741-429E-8E83-A0EBDF8E0762}.Debug|Win32.Build.0 = Debug|Win32
+		{0009F646-2741-429E-8E83-A0EBDF8E0762}.Release|Win32.ActiveCfg = Release|Win32
+		{0009F646-2741-429E-8E83-A0EBDF8E0762}.Release|Win32.Build.0 = Release|Win32
+		{904BF1EC-44B3-490B-8799-9D42BA409327}.Debug|Win32.ActiveCfg = Debug|Win32
+		{904BF1EC-44B3-490B-8799-9D42BA409327}.Debug|Win32.Build.0 = Debug|Win32
+		{904BF1EC-44B3-490B-8799-9D42BA409327}.Release|Win32.ActiveCfg = Release|Win32
+		{904BF1EC-44B3-490B-8799-9D42BA409327}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
