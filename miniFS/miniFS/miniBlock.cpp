@@ -3,40 +3,35 @@
 #include "miniBlock.h"
 #include "miniFile.h"
 
-extern FILE_SYSTEM_HEADER *g_file_system_header;	// ÎÄ¼şÏµÍ³Í·»º´æ£¨from miniFile.cpp£©
-FILE *g_storage;					// OSÉÏµÄÎïÀíÎÄ¼ş
+extern FILE_SYSTEM_HEADER *g_file_system_header;    // æ–‡ä»¶ç³»ç»Ÿå¤´ç¼“å­˜ï¼ˆfrom miniFile.cppï¼‰
+FILE *g_storage;                    // OSä¸Šçš„ç‰©ç†æ–‡ä»¶
 
-ERROR_CODE miniReadBlock(int block_number, int buffer_size, void *buf)
-{
-	// »º³åÇø´óĞ¡ÖÁÉÙ±£Ö¤Ò»¸ö¿éµÄ´óĞ¡
-	if(buffer_size < BLOCK_SIZE)
+ERROR_CODE miniReadBlock(int block_number, int buffer_size, void *buf) {
+	// ç¼“å†²åŒºå¤§å°è‡³å°‘ä¿è¯ä¸€ä¸ªå—çš„å¤§å°
+	if (buffer_size < BLOCK_SIZE)
 		return ERR_BUFFER_OVERFLOW;
 
-	// ÒÆ¶¯ÎÄ¼şÖ¸Õë
-	_fseeki64(g_storage, block_number * BLOCK_SIZE, SEEK_SET);
-	// ¶ÁÈ¡
-	if(fread(buf, BLOCK_SIZE, 1, g_storage) == 1)
+	// ç§»åŠ¨æ–‡ä»¶æŒ‡é’ˆ
+	fseek(g_storage, block_number * BLOCK_SIZE, SEEK_SET);
+	// è¯»å–
+	if (fread(buf, BLOCK_SIZE, 1, g_storage) == 1)
+		return ERR_SUCCESS;
+	else if (feof(g_storage))
 		return ERR_SUCCESS;
 	else
-		if(feof(g_storage))
-			return ERR_SUCCESS;
-		else
-			return ERR_OTHER;
+		return ERR_OTHER;
 }
 
-ERROR_CODE miniWriteBlock(int block_number, int buffer_size, void *buf)
-{
-	// Ğ´ÈëÊıÁ¿²»ÄÜ´óÓÚÒ»¸ö¿éµÄ´óĞ¡
-	if(buffer_size > BLOCK_SIZE)
+ERROR_CODE miniWriteBlock(int block_number, int buffer_size, void *buf) {
+	// å†™å…¥æ•°é‡ä¸èƒ½å¤§äºä¸€ä¸ªå—çš„å¤§å°
+	if (buffer_size > BLOCK_SIZE)
 		return ERR_BUFFER_OVERFLOW;
 
-	// ÒÆ¶¯ÎÄ¼şÖ¸Õë
-	_fseeki64(g_storage, block_number * BLOCK_SIZE, SEEK_SET);
-	// Ğ´Èë
-	if(fwrite(buf, BLOCK_SIZE, 1, g_storage) == 1)
-	{
+	// ç§»åŠ¨æ–‡ä»¶æŒ‡é’ˆ
+	fseek(g_storage, block_number * BLOCK_SIZE, SEEK_SET);
+	// å†™å…¥
+	if (fwrite(buf, BLOCK_SIZE, 1, g_storage) == 1) {
 		return ERR_SUCCESS;
-	}
-	else
+	} else
 		return ERR_OTHER;
 }

@@ -12,110 +12,119 @@
 
 #pragma pack(push, 1)
 ////////////////////////////////////////////////////////////////////////////////////////////
-// ÎÄ¼şÏµÍ³
+// æ–‡ä»¶ç³»ç»Ÿ
 
 typedef unsigned char Bitmap;
 
 /*
-* ×é£º°ÑÎ»Í¼µÄn¸ö×Ö½Ú·Ö³Ém¸ö×é£¬Ã¿¸ö×én/m¸ö×Ö½Ú
-* Èº£º¼¸¸ö×é¹¹³ÉÒ»¸öÈº£¬ÓÃÀ´·ÖÅäÖ¸¶¨ÎÄ¼ş´óĞ¡ÉÏÏŞÒÔÏÂµÄÎÄ¼ş
+* ç»„ï¼šæŠŠä½å›¾çš„nä¸ªå­—èŠ‚åˆ†æˆmä¸ªç»„ï¼Œæ¯ä¸ªç»„n/mä¸ªå­—èŠ‚
+* ç¾¤ï¼šå‡ ä¸ªç»„æ„æˆä¸€ä¸ªç¾¤ï¼Œç”¨æ¥åˆ†é…æŒ‡å®šæ–‡ä»¶å¤§å°ä¸Šé™ä»¥ä¸‹çš„æ–‡ä»¶
 */
 typedef struct _SET {
-	int amount_of_group;	// ÈºÄÚ×éµÄ¸öÊı
-	int free_block;		// ¿ÕÏĞ¿é¸öÊı
-	int max_size;		// ·ÖÅäµÄÎÄ¼ş´óĞ¡ÉÏÏŞ£¨µ¥Î»£º¿é£©
-	int begin;		// bitmapÄÚÆğÊ¼µØÖ·£¨µ¥Î»£º×Ö½Ú£©
-	int end;		// bitmapÄÚÖÕÖ¹µØÖ·£¨µ¥Î»£º×Ö½Ú£©
-	int last_search;	// ÈºÄÚÉÏ´ÎËÑË÷ÖÕÖ¹µØÖ·£¨µ¥Î»£º×Ö½Ú£©
+    int amount_of_group;    // ç¾¤å†…ç»„çš„ä¸ªæ•°
+    int free_block;        // ç©ºé—²å—ä¸ªæ•°
+    int max_size;        // åˆ†é…çš„æ–‡ä»¶å¤§å°ä¸Šé™ï¼ˆå•ä½ï¼šå—ï¼‰
+    int begin;        // bitmapå†…èµ·å§‹åœ°å€ï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰
+    int end;        // bitmapå†…ç»ˆæ­¢åœ°å€ï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰
+    int last_search;    // ç¾¤å†…ä¸Šæ¬¡æœç´¢ç»ˆæ­¢åœ°å€ï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰
 } SET, *PSET;
 
-// ÎÄ¼şÏµÍ³Í·
+// æ–‡ä»¶ç³»ç»Ÿå¤´
 typedef struct _FILE_SYSTEM_HEADER {
-	char magic[4];			// ÎÄ¼şÏµÍ³±êÊ¶·û
-	int version;			// ÎÄ¼şÏµÍ³°æ±¾ºÅ
-	int amount_of_block;		// ×Ü¿éÊı
-	int amount_of_free_block;	// ¿ÕÏĞ¿éÊı
-	int root_address;		// ¸ùÄ¿Â¼ÎÄ¼ş¿éºÅ
-	int bitmap_address;		// Î»Í¼ÆğÊ¼¿éºÅ
-	int bitmap_size;		// Î»Í¼´óĞ¡£¨µ¥Î»£º¿é£©
-	int group_size;			// Ë÷Òı×éĞèÒªµÄ¿éÊı
-	int amount_of_set;		// Èº£¨SET£©×ÜÊı
-	SET set[1];			// Èº£¨SET£©ÁĞ±í
+    char magic[4];            // æ–‡ä»¶ç³»ç»Ÿæ ‡è¯†ç¬¦
+    int version;            // æ–‡ä»¶ç³»ç»Ÿç‰ˆæœ¬å·
+    int amount_of_block;        // æ€»å—æ•°
+    int amount_of_free_block;    // ç©ºé—²å—æ•°
+    int root_address;        // æ ¹ç›®å½•æ–‡ä»¶å—å·
+    int bitmap_address;        // ä½å›¾èµ·å§‹å—å·
+    int bitmap_size;        // ä½å›¾å¤§å°ï¼ˆå•ä½ï¼šå—ï¼‰
+    int group_size;            // ç´¢å¼•ç»„éœ€è¦çš„å—æ•°
+    int amount_of_set;        // ç¾¤ï¼ˆSETï¼‰æ€»æ•°
+    SET set[1];            // ç¾¤ï¼ˆSETï¼‰åˆ—è¡¨
 } FILE_SYSTEM_HEADER, *PFILE_SYSTEM_HEADER;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-// ÎÄ¼ş
+// æ–‡ä»¶
 
-// ÎÄ¼ş·ÖÅä±í
+// æ–‡ä»¶åˆ†é…è¡¨
 typedef struct _FILE_ALLOCATE_TABLE {
-	int amount_of_block;		// ±íÖĞ¿é×ÜÊı
-	int block_number[1];		// Ã¿¸ö¿éÈë¿Ú±àºÅ
+    int amount_of_block;        // è¡¨ä¸­å—æ€»æ•°
+    int block_number[1];        // æ¯ä¸ªå—å…¥å£ç¼–å·
 } FILE_ALLOCATE_TABLE, *PFILE_ALLOCATE_TABLE;
 
-// Ä¿Â¼Ïî
+// ç›®å½•é¡¹
 typedef struct _DIRECTORY_ENTRY {
-	int block_number;		// Ä¿Â¼ÎÄ¼ş¿é±àºÅ¡£
-	short is_file;			// ÊÇ·ñÊÇÎÄ¼ş
-	char name[MAX_NAME];		// Ä¿Â¼Ãû
+    int block_number;        // ç›®å½•æ–‡ä»¶å—ç¼–å·ã€‚
+    short is_file;            // æ˜¯å¦æ˜¯æ–‡ä»¶
+    char name[MAX_NAME];        // ç›®å½•å
 } DIRECTORY_ENTRY, *PDIRECTORY_ENTRY;
 
-// Ä¿Â¼·ÖÅä±í
+// ç›®å½•åˆ†é…è¡¨
 typedef struct _DIRECTORY_ALLOCATE_TABLE {
-	int amount_of_entry;		// ±íÖĞÄ¿Â¼Ïî×ÜÊı
-	DIRECTORY_ENTRY entry[1];	// Ä¿Â¼Ïî±í
+    int amount_of_entry;        // è¡¨ä¸­ç›®å½•é¡¹æ€»æ•°
+    DIRECTORY_ENTRY entry[1];    // ç›®å½•é¡¹è¡¨
 } DIRECTORY_ALLOCATE_TABLE, *PDIRECTORY_ALLOCATE_TABLE;
 
 typedef unsigned char FLAG_DIR_FILE;
 #define	IS_DIR		0
 #define IS_FILE		1
 
-// ÊôĞÔÍ·
+// å±æ€§å¤´
 typedef struct _HEADER {
-	char name[MAX_NAME];		// ÎÄ¼şÃû
-	__time64_t create_time;		// ´´½¨Ê±¼ä
-	__time64_t modified_time;	// ĞŞ¸ÄÊ±¼ä
-	__time64_t access_time;		// ·ÃÎÊÊ±¼ä
-	__int64 file_size;		// ÎÄ¼ş´óĞ¡
-	char hidden;			// ÊÇ·ñÒş²Ø
-	FLAG_DIR_FILE is_file;		// ÎÄ¼ş/Ä¿Â¼±ê¼Ç
-	char access;			// ·ÃÎÊÈ¨ÏŞ
-	int allocate_table_number;	// ÎÄ¼ş·ÖÅä±í×ÜÊı
-	int table_block_number[1];	// ÎÄ¼ş·ÖÅä±í
+    char name[MAX_NAME];        // æ–‡ä»¶å
+    time_t create_time;        // åˆ›å»ºæ—¶é—´
+    time_t modified_time;    // ä¿®æ”¹æ—¶é—´
+    time_t access_time;        // è®¿é—®æ—¶é—´
+    long long file_size;        // æ–‡ä»¶å¤§å°
+    char hidden;            // æ˜¯å¦éšè—
+    FLAG_DIR_FILE is_file;        // æ–‡ä»¶/ç›®å½•æ ‡è®°
+    char access;            // è®¿é—®æƒé™
+    int allocate_table_number;    // æ–‡ä»¶åˆ†é…è¡¨æ€»æ•°
+    int table_block_number[1];    // æ–‡ä»¶åˆ†é…è¡¨
 } HEADER, *PHEADER;
 
-// ÎÄ¼şÊôĞÔÍ·
+// æ–‡ä»¶å±æ€§å¤´
 typedef HEADER FILE_HEADER;
-// Ä¿Â¼ÊôĞÔÍ·
+// ç›®å½•å±æ€§å¤´
 typedef HEADER DIRECTORY_HEADER;
 
-// ÃèÊö·û
+// æè¿°ç¬¦
 typedef struct _DESCRIPTOR {
-	__int64 offset;				// ÎÄ¼şÆ«ÒÆÁ¿
-	int dir_block;				// Ä¿Â¼Í·¿éºÅ
-	DIRECTORY_HEADER *dir;			// ËùÔÚÄ¿Â¼ÎÄ¼şÖ¸Õë
-	int self_block;				// ÎÄ¼şÍ·¿éºÅ
-	HEADER *self;				// ÎÄ¼şÍ·Ö¸Õë
-	void *table_buffer;			// ÎÄ¼ş/Ä¿Â¼·ÖÅä±í»º´æ£¨Ò»¸ö¿é´óĞ¡£¬·ÀÖ¹Æµ·±malloc£©
+    long long offset;                // æ–‡ä»¶åç§»é‡
+    int dir_block;                // ç›®å½•å¤´å—å·
+    DIRECTORY_HEADER *dir;            // æ‰€åœ¨ç›®å½•æ–‡ä»¶æŒ‡é’ˆ
+    int self_block;                // æ–‡ä»¶å¤´å—å·
+    HEADER *self;                // æ–‡ä»¶å¤´æŒ‡é’ˆ
+    void *table_buffer;            // æ–‡ä»¶/ç›®å½•åˆ†é…è¡¨ç¼“å­˜ï¼ˆä¸€ä¸ªå—å¤§å°ï¼Œé˜²æ­¢é¢‘ç¹mallocï¼‰
 } DESCRIPTOR, *PDESCRIPTOR;
 
-// ÎÄ¼şÃèÊö·û
+// æ–‡ä»¶æè¿°ç¬¦
 typedef DESCRIPTOR FILE_DESCRIPTOR;
-// Ä¿Â¼ÃèÊö·û
+// ç›®å½•æè¿°ç¬¦
 typedef DESCRIPTOR DIRECTORY_DESCRIPTOR;
 
 #pragma pack(pop)
 
-ERROR_CODE miniCreateFile(char *path, __int64 size, char *mode, FILE_DESCRIPTOR **p_fd);
-ERROR_CODE miniReadFile(FILE_DESCRIPTOR *fd, __int64 size, int buffer_size, void *buffer, __int64 *size_read);
-ERROR_CODE miniWriteFile(FILE_DESCRIPTOR *fd, __int64 size, int buffer_size, void *buffer, __int64 *size_write);
-ERROR_CODE miniSeekFile(FILE_DESCRIPTOR *fd, __int64 offset);
+ERROR_CODE miniCreateFile(char *path, long long size, char *mode, FILE_DESCRIPTOR **p_fd);
+
+ERROR_CODE miniReadFile(FILE_DESCRIPTOR *fd, long long size, int buffer_size, void *buffer, long long *size_read);
+
+ERROR_CODE miniWriteFile(FILE_DESCRIPTOR *fd, long long size, int buffer_size, void *buffer, long long *size_write);
+
+ERROR_CODE miniSeekFile(FILE_DESCRIPTOR *fd, long long offset);
+
 ERROR_CODE miniDeleteFile(FILE_DESCRIPTOR *fd);
+
 ERROR_CODE miniCloseFile(FILE_DESCRIPTOR *fd);
 
 ERROR_CODE miniCreateDirectory(char *path, char *mode, DIRECTORY_DESCRIPTOR **p_dd);
+
 ERROR_CODE miniReadDirectory(DIRECTORY_DESCRIPTOR *dd, int *buffer_size, void *buffer);
+
 ERROR_CODE miniWriteDirectory(DIRECTORY_DESCRIPTOR *dd, DESCRIPTOR *target);
+
 ERROR_CODE miniDeleteDirectory(DIRECTORY_DESCRIPTOR *dd);
+
 ERROR_CODE miniCloseDirectory(DIRECTORY_DESCRIPTOR *dd);
 
 ERROR_CODE miniChangeCurrentDirectory(char *path);
@@ -129,7 +138,7 @@ ERROR_CODE miniInitFileSystem(void);
 ERROR_CODE miniExitSystem(void);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ¸¨Öúº¯Êı
+// è¾…åŠ©å‡½æ•°
 inline void SetBit(unsigned char *target, int bit_pos, int value);
 inline int IsBitSet(unsigned char *target, int bit_pos);
 inline void UpdateBitmap(int bit_pos, int value);
@@ -148,7 +157,8 @@ ERROR_CODE InsertToDirectory(DIRECTORY_HEADER *dh, int block, HEADER *hh, int he
 
 ERROR_CODE PreProcessPath(char *path);
 
-ERROR_CODE NewEmptyItem(char *name, __int64 size, DIRECTORY_HEADER *dh, int dir_block, HEADER *hh, int *file_block);
+ERROR_CODE NewEmptyItem(char *name, long long size, DIRECTORY_HEADER *dh, int dir_block, HEADER *hh, int *file_block);
+
 ERROR_CODE DeleteItem(DESCRIPTOR *d);
 ERROR_CODE CloseItem(DESCRIPTOR *d);
 ERROR_CODE FreeItemDiskSpace(int item_block);
@@ -156,7 +166,7 @@ inline int LookForFreeBlock(int size);
 inline int LogicalToPhysical(FILE_HEADER *fh, int logical_block);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ºê
+// å®
 #define MAKE_VERSION(major, minor)	((major << 16) | minor)
 #define MAKE_ACCESS(r, w, x)		((r << 2) | (w << 1) | x)
 
