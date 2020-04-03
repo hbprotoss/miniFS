@@ -2,44 +2,39 @@
 #include <cstdlib>
 
 #include "miniCommandParsing.h"
-#include "miniAPP.h"
+#include "miniApp.h"
 
-extern char g_current_path[MAX_PATH_NAME];			// È«¾Öµ±Ç°Ä¿Â¼×Ö·û´®(from miniFile.cpp)
-int main(int argc, char *argv[])
-{
-	if(argc != 2)
-	{
-		printf("²ÎÊı¸ñÊ½²»·û¡£²ÎÊı¸ñÊ½£ºmount ÎÄ¼şÃû\n");
-		exit(1);
-	}
-	if(mount(argv[1]) == ERR_NOT_FOUND)
-	{
-		printf("ĞéÄâ´ÅÅÌÎ´ÕÒµ½!\n");
-		exit(1);
-	}
+extern char g_current_path[MAX_PATH_NAME];            // å…¨å±€å½“å‰ç›®å½•å­—ç¬¦ä¸²(from miniFile.cpp)
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("å‚æ•°æ ¼å¼ä¸ç¬¦ã€‚å‚æ•°æ ¼å¼ï¼šmount æ–‡ä»¶å\n");
+        exit(1);
+    }
+    if (mount(argv[1]) == ERR_NOT_FOUND) {
+        printf("è™šæ‹Ÿç£ç›˜æœªæ‰¾åˆ°!\n");
+        exit(1);
+    }
 
-	Cmd cmd;		//´æ´¢ÃüÁî½âÎö½á¹û
+    Cmd cmd;        //å­˜å‚¨å‘½ä»¤è§£æç»“æœ
 
-	for(  ;  ;   )	//Ñ­»·¶ÁÈë¡¢½âÎö²¢Ö´ĞĞÃüÁî
-	{
-		printf("[%s ]:  ", g_current_path);
-		cmd = ParsingCommand();		//¶ÁÈë²¢½âÎöÃüÁî
+    for (;;)    //å¾ªç¯è¯»å…¥ã€è§£æå¹¶æ‰§è¡Œå‘½ä»¤
+    {
+        printf("[%s ]:  ", g_current_path);
+        cmd = ParsingCommand();        //è¯»å…¥å¹¶è§£æå‘½ä»¤
 
-		if(cmd.type == TYPE_CLOSE)			//ÍË³öÃüÁî
-		{
-			EXEC ord = Confirm();	//È·¶¨Ö´ĞĞÑ¯ÎÊ
-			if(ord == EXEC_Y)			//Ö´ĞĞÍË³öÃüÁî
-			{
-				ExecuteCommand(cmd);
-				break;
-			}
-			else		//²»Ö´ĞĞÍË³öÃüÁî
-				continue;
-		}
-		else			//ÆäËûÃüÁî
-		{
-				ExecuteCommand(cmd);	//Ö´ĞĞÃüÁî
-		}
+        if (cmd.type == TYPE_CLOSE)            //é€€å‡ºå‘½ä»¤
+        {
+            EXEC ord = Confirm();    //ç¡®å®šæ‰§è¡Œè¯¢é—®
+            if (ord == EXEC_Y)            //æ‰§è¡Œé€€å‡ºå‘½ä»¤
+            {
+                ExecuteCommand(cmd);
+                break;
+            } else        //ä¸æ‰§è¡Œé€€å‡ºå‘½ä»¤
+                continue;
+        } else            //å…¶ä»–å‘½ä»¤
+        {
+            ExecuteCommand(cmd);    //æ‰§è¡Œå‘½ä»¤
+        }
 	}
 
 	return 0;

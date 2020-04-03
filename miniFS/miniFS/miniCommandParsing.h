@@ -4,39 +4,39 @@
 typedef int TYPE;
 typedef int EXEC;
 
-#define	TYPE_CLOSE			0x00		//¹Ø±ÕÏµÍ³ÃüÁî
-#define	TYPE_HEIP			0x01		//°ïÖúÃüÁî
-#define TYPE_SYS			0x02		//ÏÔÊ¾ÏµÍ³ĞÅÏ¢
-#define	TYPE_FMT			0x03		//¸ñÊ½»¯ÃüÁî
-#define	TYPE_OPT			0x04		//ÓÅ»¯¿Õ¼äÃüÁî
-#define TYPE_CLS			0x05		//ÇåÆÁÃüÁî
-#define TYPE_MKDIR			0x06		//½¨Á¢Ä¿Â¼ÃüÁî
-#define	TYPE_CD				0x07		//ÇĞ»»Ä¿Â¼ÃüÁî
-#define	TYPE_DR				0x08		//ÏÔÊ¾Ä¿Â¼ÃüÁî
-#define TYPE_ATT			0x09		//ÏÔÊ¾ÎÄ¼şÊôĞÔÃüÁî
-#define TYPE_TP				0x0a		//ÏÔÊ¾ÎÄ¼şÃüÁî
-#define TYPE_MORE			0x0b		//·ÖÒ³ÏÔÊ¾ÎÄ¼şÃüÁî
-#define TYPE_CP				0x0c		//¿½±´ÃüÁî
-#define TYPE_DL				0x0d		//É¾³ıÃüÁî
-#define TYPE_NOT_FOUND		0x0e		//ÃüÁî²»´æÔÚ
-#define TYPE_INVALID_PARAMETER	0x0f	//ÃüÁî²ÎÊı²»·û
-#define TYPE_BUFFER_OVERFLOW	0x10	//»º³åÇøÒç³ö
-#define TYPE_NO				0x11		//Î´¶ÁÈëÃüÁî
+#define    TYPE_CLOSE            0x00        //å…³é—­ç³»ç»Ÿå‘½ä»¤
+#define    TYPE_HEIP            0x01        //å¸®åŠ©å‘½ä»¤
+#define TYPE_SYS            0x02        //æ˜¾ç¤ºç³»ç»Ÿä¿¡æ¯
+#define    TYPE_FMT            0x03        //æ ¼å¼åŒ–å‘½ä»¤
+#define    TYPE_OPT            0x04        //ä¼˜åŒ–ç©ºé—´å‘½ä»¤
+#define TYPE_CLS            0x05        //æ¸…å±å‘½ä»¤
+#define TYPE_MKDIR            0x06        //å»ºç«‹ç›®å½•å‘½ä»¤
+#define    TYPE_CD                0x07        //åˆ‡æ¢ç›®å½•å‘½ä»¤
+#define    TYPE_DR                0x08        //æ˜¾ç¤ºç›®å½•å‘½ä»¤
+#define TYPE_ATT            0x09        //æ˜¾ç¤ºæ–‡ä»¶å±æ€§å‘½ä»¤
+#define TYPE_TP                0x0a        //æ˜¾ç¤ºæ–‡ä»¶å‘½ä»¤
+#define TYPE_MORE            0x0b        //åˆ†é¡µæ˜¾ç¤ºæ–‡ä»¶å‘½ä»¤
+#define TYPE_CP                0x0c        //æ‹·è´å‘½ä»¤
+#define TYPE_DL                0x0d        //åˆ é™¤å‘½ä»¤
+#define TYPE_NOT_FOUND        0x0e        //å‘½ä»¤ä¸å­˜åœ¨
+#define TYPE_INVALID_PARAMETER    0x0f    //å‘½ä»¤å‚æ•°ä¸ç¬¦
+#define TYPE_BUFFER_OVERFLOW    0x10    //ç¼“å†²åŒºæº¢å‡º
+#define TYPE_NO                0x11        //æœªè¯»å…¥å‘½ä»¤
 
 
-#define EXEC_Y		0x00				//ÃüÁîÖ´ĞĞ
-#define EXEC_N		0x01				//ÃüÁî²»Ö´ĞĞ
+#define EXEC_Y        0x00                //å‘½ä»¤æ‰§è¡Œ
+#define EXEC_N        0x01                //å‘½ä»¤ä¸æ‰§è¡Œ
 
-typedef struct Command		//´æ´¢ÃüÁî½âÎö½á¹û
+typedef struct Command        //å­˜å‚¨å‘½ä»¤è§£æç»“æœ
 {
-	TYPE type;		//ÃüÁîÀàĞÍ
-	int flag;		//²ÎÊı±ê¼Ç
-	char para1[260];	//²ÎÊıÒ»
-	char para2[260];	//²ÎÊı¶ş
-}Cmd;
+	TYPE type;        //å‘½ä»¤ç±»å‹
+	int flag;        //å‚æ•°æ ‡è®°
+	char para1[260];    //å‚æ•°ä¸€
+	char para2[260];    //å‚æ•°äºŒ
+} Cmd;
 
-Cmd ParsingCommand( );		//½âÎöÃüÁîº¯Êı
-EXEC Confirm();		//ÃüÁîÖ´ĞĞĞÔÑ¯ÎÊ
-void ExecuteCommand(Cmd cmd);		//Ö´ĞĞÃüÁîº¯Êı
+Cmd ParsingCommand();        //è§£æå‘½ä»¤å‡½æ•°
+EXEC Confirm();        //å‘½ä»¤æ‰§è¡Œæ€§è¯¢é—®
+void ExecuteCommand(Cmd cmd);        //æ‰§è¡Œå‘½ä»¤å‡½æ•°
 
 #endif

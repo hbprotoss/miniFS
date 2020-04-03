@@ -7,182 +7,193 @@
 #include "miniError.h"
 
 /*
-* º¯ÊıÃû£ºExecuteCommand
-*¹¦ÄÜ£ºÃüÁîÖ´ĞĞ£¬²¢Êä³öÖ´ĞĞ½á¹û
-* ²ÎÊı£ºCmd£¬´æ´¢ËùÒªÖ´ĞĞµÄÃüÁî¼°ÃüÁî²ÎÊı
-* ·µ»ØÖµ£º¿Õ
+* å‡½æ•°åï¼šExecuteCommand
+*åŠŸèƒ½ï¼šå‘½ä»¤æ‰§è¡Œï¼Œå¹¶è¾“å‡ºæ‰§è¡Œç»“æœ
+* å‚æ•°ï¼šCmdï¼Œå­˜å‚¨æ‰€è¦æ‰§è¡Œçš„å‘½ä»¤åŠå‘½ä»¤å‚æ•°
+* è¿”å›å€¼ï¼šç©º
 */
-void ExecuteCommand(Cmd cmd)
-{
-	ERROR_CODE err = ERR_SUCCESS;	//´æ´¢ÃüÁîÖ´ĞĞ½á¹û
+void ExecuteCommand(Cmd cmd) {
+	ERROR_CODE err = ERR_SUCCESS;    //å­˜å‚¨å‘½ä»¤æ‰§è¡Œç»“æœ
 
-	switch(cmd.type)	//Ö´ĞĞÃüÁî
+	switch (cmd.type)    //æ‰§è¡Œå‘½ä»¤
 	{
-		/***************************¿ÕÃüÁî*******************************/
-		case TYPE_NO:
-		{
-			return ;
+		/***************************ç©ºå‘½ä»¤*******************************/
+		case TYPE_NO: {
+			return;
 		};
 
-		/***************************ÇåÆÁÃüÁî*******************************/
-		case TYPE_CLS:
-		{
+			/***************************æ¸…å±å‘½ä»¤*******************************/
+		case TYPE_CLS: {
 			err = cls();
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÍË³öÏµÍ³*******************************/
-		case TYPE_CLOSE:
-		{
+			/***************************å‘½ä»¤ï¼šé€€å‡ºç³»ç»Ÿ*******************************/
+		case TYPE_CLOSE: {
 			err = close();
-		}break;
+		}
+			break;
 
-		/***************************ÏÔÊ¾ÏµÍ³ĞÅÏ¢ÃüÁî*******************************/
-		case TYPE_SYS:
-		{
+			/***************************æ˜¾ç¤ºç³»ç»Ÿä¿¡æ¯å‘½ä»¤*******************************/
+		case TYPE_SYS: {
 			err = sys();
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÏÔÊ¾°ïÖúĞÅÏ¢*******************************/
-		case TYPE_HEIP:
-		{
-			if(cmd.flag == 0)
+			/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºå¸®åŠ©ä¿¡æ¯*******************************/
+		case TYPE_HEIP: {
+			if (cmd.flag == 0)
 				help(NULL);
 			else
 				help(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£º¸ñÊ½»¯ÏµÍ³*******************************/
-		case TYPE_FMT:
-		{
-			EXEC ord = Confirm();	//È·¶¨Ö´ĞĞÑ¯ÎÊ
-			if(ord == EXEC_Y)			//Ö´ĞĞ¸ñÊ½»¯ÃüÁî
+			/***************************å‘½ä»¤ï¼šæ ¼å¼åŒ–ç³»ç»Ÿ*******************************/
+		case TYPE_FMT: {
+			EXEC ord = Confirm();    //ç¡®å®šæ‰§è¡Œè¯¢é—®
+			if (ord == EXEC_Y)            //æ‰§è¡Œæ ¼å¼åŒ–å‘½ä»¤
 				err = fmt();
-			else		//²»Ö´ĞĞ¸ñÊ½»¯ÃüÁî
-				return ;
-		}break;
+			else        //ä¸æ‰§è¡Œæ ¼å¼åŒ–å‘½ä»¤
+				return;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÓÅ»¯´æ´¢¿Õ¼ä*******************************/
-		case TYPE_OPT:
-		{
-			EXEC ord = Confirm();	//È·¶¨Ö´ĞĞÑ¯ÎÊ
-			if(ord == EXEC_Y)			//Ö´ĞĞÓÅ»¯ÃüÁî
+			/***************************å‘½ä»¤ï¼šä¼˜åŒ–å­˜å‚¨ç©ºé—´*******************************/
+		case TYPE_OPT: {
+			EXEC ord = Confirm();    //ç¡®å®šæ‰§è¡Œè¯¢é—®
+			if (ord == EXEC_Y)            //æ‰§è¡Œä¼˜åŒ–å‘½ä»¤
 				err = opt();
-			else		//²»Ö´ĞĞ¸ñÊ½»¯ÃüÁî
-				return ;
-		}break;
+			else        //ä¸æ‰§è¡Œæ ¼å¼åŒ–å‘½ä»¤
+				return;
+		}
+			break;
 
-		/***************************ÃüÁî£º½¨Á¢Ä¿Â¼*******************************/
-		case TYPE_MKDIR:
-		{
+			/***************************å‘½ä»¤ï¼šå»ºç«‹ç›®å½•*******************************/
+		case TYPE_MKDIR: {
 			err = mkdir(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÇĞ»»Ä¿Â¼*******************************/
-		case TYPE_CD:
-		{
+			/***************************å‘½ä»¤ï¼šåˆ‡æ¢ç›®å½•*******************************/
+		case TYPE_CD: {
 			err = cd(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÏÔÊ¾Ä¿Â¼*******************************/
-		case TYPE_DR:
-		{
-			if(cmd.flag == 0)
+			/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºç›®å½•*******************************/
+		case TYPE_DR: {
+			if (cmd.flag == 0)
 				err = dr(NULL);
 			else
 				err = dr(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÏÔÊ¾×ÓÄ¿Â¼/ÎÄ¼şÊôĞÔ*******************/
-		case TYPE_ATT:
-		{
+			/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºå­ç›®å½•/æ–‡ä»¶å±æ€§*******************/
+		case TYPE_ATT: {
 			err = att(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£ºÏÔÊ¾ÎÄ¼şÄÚÈİ**************************/
-		case TYPE_TP:
-		{
+			/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºæ–‡ä»¶å†…å®¹**************************/
+		case TYPE_TP: {
 			err = tp(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£º·ÖÒ³ÏÔÊ¾ÎÄ¼şÄÚÈİ*********************/
-		case TYPE_MORE:
-		{
+			/***************************å‘½ä»¤ï¼šåˆ†é¡µæ˜¾ç¤ºæ–‡ä»¶å†…å®¹*********************/
+		case TYPE_MORE: {
 			err = more(cmd.para1);
-		}break;
+		}
+			break;
 
-		/***************************ÃüÁî£º¿½±´ÎÄ¼ş*******************************/
-		case TYPE_CP:
-		{
-			err = cp(cmd.para1,cmd.para2);
-		}break;
+			/***************************å‘½ä»¤ï¼šæ‹·è´æ–‡ä»¶*******************************/
+		case TYPE_CP: {
+			err = cp(cmd.para1, cmd.para2);
+		}
+			break;
 
-		/***************************ÃüÁî£ºÉ¾³ı×ÓÄ¿Â¼/ÎÄ¼ş***********************/
-		case TYPE_DL:
-		{
-			EXEC ord = Confirm();	//È·¶¨Ö´ĞĞÑ¯ÎÊ
-			if(ord == EXEC_Y)			//Ö´ĞĞÉ¾³ıÃüÁî
+			/***************************å‘½ä»¤ï¼šåˆ é™¤å­ç›®å½•/æ–‡ä»¶***********************/
+		case TYPE_DL: {
+			EXEC ord = Confirm();    //ç¡®å®šæ‰§è¡Œè¯¢é—®
+			if (ord == EXEC_Y)            //æ‰§è¡Œåˆ é™¤å‘½ä»¤
 				err = dl(cmd.para1);
-			else		//²»Ö´ĞĞÉ¾³ıÃüÁî
-				return ;
-		}break;
+			else        //ä¸æ‰§è¡Œåˆ é™¤å‘½ä»¤
+				return;
+		}
+			break;
 
-		/***************************ÃüÁî²»´æÔÚ***********************/
-		case TYPE_NOT_FOUND:
-		{
+			/***************************å‘½ä»¤ä¸å­˜åœ¨***********************/
+		case TYPE_NOT_FOUND: {
 			printf("Command not found! You can type 'help' to help.\n");
-		}break;
+		}
+			break;
 
-		/***************************²ÎÊı²»·ûºÏÒªÇó***********************/
-		case TYPE_INVALID_PARAMETER:
-		{
+			/***************************å‚æ•°ä¸ç¬¦åˆè¦æ±‚***********************/
+		case TYPE_INVALID_PARAMETER: {
 			printf("Invalid parameter! You can type 'help command' to help.\n");
-		}break;
+		}
+			break;
 
-		/***************************»º³åÇøÒç³ö***********************/
-		case TYPE_BUFFER_OVERFLOW:
-		{
-			printf("ÄãÈÏÎªÓĞÕâÃ´³¤µÄÃüÁîÂğ£¡½ûÖ¹ÆÛ¸º¿à±ÆÓÖ¾´ÒµµÄ³ÌĞòºï×Ó£¡£¡£¡\n");
-		}break;
+			/***************************ç¼“å†²åŒºæº¢å‡º***********************/
+		case TYPE_BUFFER_OVERFLOW: {
+			printf("ä½ è®¤ä¸ºæœ‰è¿™ä¹ˆé•¿çš„å‘½ä»¤å—ï¼ç¦æ­¢æ¬ºè´Ÿè‹¦é€¼åˆæ•¬ä¸šçš„ç¨‹åºçŒ´å­ï¼ï¼ï¼\n");
+		}
+			break;
 
-		/***************************Î´ÖªÇé¿ö***********************/
-		default:
-		{
-			printf("Î´Öª´íÎó£¡ÇëÁªÏµÕâÈº¿à±ÆÓÖ¾´ÒµµÄ³ÌĞòºï×Ó£¨Nerv¿ª·¢×é£©£ºyoujianghulsk@gmail.com£¬¿´¿´·¢ÉúÁËÊ²Ã´£¡\n");
+			/***************************æœªçŸ¥æƒ…å†µ***********************/
+		default: {
+			printf("æœªçŸ¥é”™è¯¯ï¼è¯·è”ç³»è¿™ç¾¤è‹¦é€¼åˆæ•¬ä¸šçš„ç¨‹åºçŒ´å­ï¼ˆNervå¼€å‘ç»„ï¼‰ï¼šyoujianghulsk@gmail.comï¼Œçœ‹çœ‹å‘ç”Ÿäº†ä»€ä¹ˆï¼\n");
 		}
 	}
 
-	switch(err)		//Êä³öÖ´ĞĞ½á¹û
+	switch (err)        //è¾“å‡ºæ‰§è¡Œç»“æœ
 	{
-		case ERR_SUCCESS:
-			;	break;
-		case ERR_TYPE_MISMATCH:	
-			printf("Type mismatch£¡You can type 'help command' to help.\n");	break;
+		case ERR_SUCCESS:;
+			break;
+		case ERR_TYPE_MISMATCH:
+			printf("Type mismatchï¼You can type 'help command' to help.\n");
+			break;
 		case ERR_NOT_FOUND:
-			printf("File or directory not found.\n");	break;
+			printf("File or directory not found.\n");
+			break;
 		case ERR_BUFFER_OVERFLOW:
-			printf("Buffer overflow.\n");	break;
+			printf("Buffer overflow.\n");
+			break;
 		case ERR_READ_ONLY:
-			printf("File read only£¡You can type 'help command' to help.\n");	break;
+			printf("File read onlyï¼You can type 'help command' to help.\n");
+			break;
 		case ERR_OUT_OF_RANGE:
-			printf("File pointer out of range£¡\n");	break;
+			printf("File pointer out of rangeï¼\n");
+			break;
 		case ERR_UNKNOWN_FILE_SYSTEM:
-			printf("Unkown file system£¡\n");	break;
+			printf("Unkown file systemï¼\n");
+			break;
 		case ERR_INVALID_FILE_NAME:
-			printf("Invalid file or dir name.\n");	break;
+			printf("Invalid file or dir name.\n");
+			break;
 		case ERR_UNKNOWN_OPEN_MODE:
-			printf("Unknown open mode£¡\n");	break;;	break;
+			printf("Unknown open modeï¼\n");
+			break;;
+			break;
 		case ERR_NOT_ENOUGH_DISK_SPACE:
-			printf("There is no enough disk space.\n");	break;
+			printf("There is no enough disk space.\n");
+			break;
 		case ERR_NOT_FORMATED:
-			printf("System is not formated.\n");	break;
+			printf("System is not formated.\n");
+			break;
 		case ERR_OTHER:
-			printf("Unknown error£¡\n");	break;
+			printf("Unknown errorï¼\n");
+			break;
 		case ERR_DIRECTORY_NOT_EMPTY:
-			printf("Directory not empty!\n");	break;
+			printf("Directory not empty!\n");
+			break;
 		case ERR_PATH_TOO_LONG:
-			printf("Path too long!\n");	break;
+			printf("Path too long!\n");
+			break;
 		default:
-			printf("Unknown error£¡ÇëÁªÏµÕâÈº¿à±ÆÓÖ¾´ÒµµÄ³ÌĞòºï×Ó£¨Nerv¿ª·¢×é£©£ºyoujianghulsk@gmail.com£¬¿´¿´·¢ÉúÁËÊ²Ã´£¡\n");
+			printf("Unknown errorï¼è¯·è”ç³»è¿™ç¾¤è‹¦é€¼åˆæ•¬ä¸šçš„ç¨‹åºçŒ´å­ï¼ˆNervå¼€å‘ç»„ï¼‰ï¼šyoujianghulsk@gmail.comï¼Œçœ‹çœ‹å‘ç”Ÿäº†ä»€ä¹ˆï¼\n");
 	}
 
 	return ;

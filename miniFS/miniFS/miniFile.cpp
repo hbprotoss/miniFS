@@ -8,37 +8,36 @@
 #include "miniFile.h"
 #include "miniBlock.h"
 
-FILE_SYSTEM_HEADER *g_file_system_header;		// ÎÄ¼şÏµÍ³Í·»º´æ
-Bitmap *g_bitmap;					// Î»Í¼»º´æ
-extern FILE *g_storage;					// ĞéÄâ´ÅÅÌÎÄ¼ş(from miniBlock.cpp)
+FILE_SYSTEM_HEADER *g_file_system_header;        // æ–‡ä»¶ç³»ç»Ÿå¤´ç¼“å­˜
+Bitmap *g_bitmap;                    // ä½å›¾ç¼“å­˜
+extern FILE *g_storage;                    // è™šæ‹Ÿç£ç›˜æ–‡ä»¶(from miniBlock.cpp)
 
-DIRECTORY_DESCRIPTOR *g_root;				// ¸ùÄ¿Â¼ÃèÊö·û
-DIRECTORY_DESCRIPTOR *g_current_dir;			// µ±Ç°Ä¿Â¼ÃèÊö·û
-char g_current_path[MAX_PATH_NAME];			// È«¾Öµ±Ç°Ä¿Â¼×Ö·û´®
+DIRECTORY_DESCRIPTOR *g_root;                // æ ¹ç›®å½•æè¿°ç¬¦
+DIRECTORY_DESCRIPTOR *g_current_dir;            // å½“å‰ç›®å½•æè¿°ç¬¦
+char g_current_path[MAX_PATH_NAME];            // å…¨å±€å½“å‰ç›®å½•å­—ç¬¦ä¸²
 
-#define MAGIC		"Nerv"
-#define PATH_SEPS	"/"
-#define AMOUNT_OF_SET	4
-#define GROUP_PER_GB	128				// Éè¼ÆÖĞ1GBĞèÒª128¸öË÷Òı×é
-#define BYTES_PER_GROUP	(1 * GB / GROUP_PER_GB)		// Ã¿¸ö×éË÷ÒıµÄ×Ö½ÚÊı
-#define GB_PER_BLOCK	16				// ´óĞ¡ÎªÒ»¸öBLOCKµÄË÷Òı×éÖ§³ÖµÄ×î´óĞéÄâ´ÅÅÌ´óĞ¡
-#define BITMAP_BLOCK_PER_GB	8			// Ã¿GBĞéÄâ´ÅÅÌĞèÒª8¸öBLOCKµÄbitmap
-#define ENTRY_PER_TABLE		((BLOCK_SIZE - sizeof(int)) / sizeof(DIRECTORY_ENTRY))		// Ò»¸öÄ¿Â¼±íÖĞ×î¶à´æ¼¸¸öÄ¿Â¼Ïî
-#define BLOCK_PER_FILE_TABLE	(BLOCK_SIZE / sizeof(int) - 1)
+#define MAGIC        "Nerv"
+#define PATH_SEPS    "/"
+#define AMOUNT_OF_SET    4
+#define GROUP_PER_GB    128                // è®¾è®¡ä¸­1GBéœ€è¦128ä¸ªç´¢å¼•ç»„
+#define BYTES_PER_GROUP    (1 * GB / GROUP_PER_GB)        // æ¯ä¸ªç»„ç´¢å¼•çš„å­—èŠ‚æ•°
+#define GB_PER_BLOCK    16                // å¤§å°ä¸ºä¸€ä¸ªBLOCKçš„ç´¢å¼•ç»„æ”¯æŒçš„æœ€å¤§è™šæ‹Ÿç£ç›˜å¤§å°
+#define BITMAP_BLOCK_PER_GB    8            // æ¯GBè™šæ‹Ÿç£ç›˜éœ€è¦8ä¸ªBLOCKçš„bitmap
+#define ENTRY_PER_TABLE        ((BLOCK_SIZE - sizeof(int)) / sizeof(DIRECTORY_ENTRY))        // ä¸€ä¸ªç›®å½•è¡¨ä¸­æœ€å¤šå­˜å‡ ä¸ªç›®å½•é¡¹
+#define BLOCK_PER_FILE_TABLE    (BLOCK_SIZE / sizeof(int) - 1)
 
-// ½«targetËùÖ¸ÏòµÄÄÚ´æÇøÓòÖĞµÄµÚbit_posÎ»ÉèÎªvalue
-void SetBit(unsigned char *target, int bit_pos, int value)
-{
-	int byte = bit_pos / 8;
-	int offset = bit_pos % 8;
-	int x = 1 << (7 - offset);
-	if(value == 1)
-		target[byte] |= x;
+// å°†targetæ‰€æŒ‡å‘çš„å†…å­˜åŒºåŸŸä¸­çš„ç¬¬bit_posä½è®¾ä¸ºvalue
+void SetBit(unsigned char *target, int bit_pos, int value) {
+    int byte = bit_pos / 8;
+    int offset = bit_pos % 8;
+    int x = 1 << (7 - offset);
+    if (value == 1)
+        target[byte] |= x;
 	else
 		target[byte] &= (~x);
 }
 
-// ²âÊÔtargetËùÖ¸ÏòµÄÄÚ´æÇøÓòÖĞµÍbit_posÎ»ÊÇ·ñÎª1
+// æµ‹è¯•targetæ‰€æŒ‡å‘çš„å†…å­˜åŒºåŸŸä¸­ä½bit_posä½æ˜¯å¦ä¸º1
 int IsBitSet(unsigned char *target, int bit_pos)
 {
 	int byte = bit_pos / 8;
@@ -47,25 +46,22 @@ int IsBitSet(unsigned char *target, int bit_pos)
 	return x & target[byte];
 }
 
-// µ÷ÓÃÍê³ÉÖ®ºó±ØĞëfflush
-void UpdateBitmap(int bit_pos, int value)
-{
-	SetBit(g_bitmap, bit_pos, value);
-	int byte = bit_pos / 8;		// Î»Í¼ÖĞµÄ×Ö½Ú
-	fseek(g_storage, g_file_system_header->bitmap_address * BLOCK_SIZE + byte, SEEK_SET);
-	fwrite(&g_bitmap[byte], sizeof(Bitmap), 1, g_storage);
+// è°ƒç”¨å®Œæˆä¹‹åå¿…é¡»fflush
+void UpdateBitmap(int bit_pos, int value) {
+    SetBit(g_bitmap, bit_pos, value);
+    int byte = bit_pos / 8;        // ä½å›¾ä¸­çš„å­—èŠ‚
+    fseek(g_storage, g_file_system_header->bitmap_address * BLOCK_SIZE + byte, SEEK_SET);
+    fwrite(&g_bitmap[byte], sizeof(Bitmap), 1, g_storage);
 
-	// Î¬»¤ÈºÄÚ¿ÕÏĞ¿éÊı
-	SET *list = g_file_system_header->set;
-	SET *set = NULL;
-	for(int i = 0; i < AMOUNT_OF_SET; i++)
-	{
-		if(byte <= list[i].end)
-		{
-			set = &list[i];
-			break;
-		}
-	}
+    // ç»´æŠ¤ç¾¤å†…ç©ºé—²å—æ•°
+    SET *list = g_file_system_header->set;
+    SET *set = NULL;
+    for (int i = 0; i < AMOUNT_OF_SET; i++) {
+        if (byte <= list[i].end) {
+            set = &list[i];
+            break;
+        }
+    }
 	if(value == 1)
 	{
 		set->free_block--;
@@ -81,117 +77,111 @@ void UpdateBitmap(int bit_pos, int value)
 	fwrite(&g_file_system_header->amount_of_free_block, sizeof(g_file_system_header->amount_of_free_block), 1, g_storage);
 }
 
-ERROR_CODE miniFormat(void)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	unsigned char buffer[BLOCK_SIZE];
-	memset(buffer, 0, BLOCK_SIZE * sizeof(unsigned char));
+ERROR_CODE miniFormat(void) {
+    ERROR_CODE status = ERR_SUCCESS;
+    unsigned char buffer[BLOCK_SIZE];
+    memset(buffer, 0, BLOCK_SIZE * sizeof(unsigned char));
 
-	// »ñµÃ´ÅÅÌÎÄ¼ş´óĞ¡
-	__int64 disk_size;
-	_fseeki64(g_storage, 0, SEEK_END);
-	disk_size = _ftelli64(g_storage);
-	_fseeki64(g_storage, 0, SEEK_SET);
+    // è·å¾—ç£ç›˜æ–‡ä»¶å¤§å°
+    long long disk_size;
+    fseek(g_storage, 0, SEEK_END);
+    disk_size = ftell(g_storage);
+    fseek(g_storage, 0, SEEK_SET);
 
-	memset(g_file_system_header, 0, BLOCK_SIZE);
+    memset(g_file_system_header, 0, BLOCK_SIZE);
 
-	memcpy(g_file_system_header->magic, MAGIC, strlen(MAGIC));
-	g_file_system_header->version = MAKE_VERSION(0, 1);
-	g_file_system_header->amount_of_free_block =
-	g_file_system_header->amount_of_block = disk_size / BLOCK_SIZE;
+    memcpy(g_file_system_header->magic, MAGIC, strlen(MAGIC));
+    g_file_system_header->version = MAKE_VERSION(0, 1);
+    g_file_system_header->amount_of_free_block =
+    g_file_system_header->amount_of_block = disk_size / BLOCK_SIZE;
 
-	// ÎÄ¼ş´óĞ¡±¶ÂÊÒò×Ó£¬¼´1GBµÄ±¶ÂÊ¡£
-	int factor = (int)ceil(g_file_system_header->amount_of_block * 4.0 / 1024 / 1024);
-	int block = g_file_system_header->amount_of_block;
+    // æ–‡ä»¶å¤§å°å€ç‡å› å­ï¼Œå³1GBçš„å€ç‡ã€‚
+    int factor = (int) ceil(g_file_system_header->amount_of_block * 4.0 / 1024 / 1024);
+    int block = g_file_system_header->amount_of_block;
 
-	// Ò»¿éÎÄ¼şÏµÍ³Í· + Ë÷Òı×é¿éÊı(ÉÏÈ¡Õû)
-	g_file_system_header->bitmap_address = 1;
+    // ä¸€å—æ–‡ä»¶ç³»ç»Ÿå¤´ + ç´¢å¼•ç»„å—æ•°(ä¸Šå–æ•´)
+    g_file_system_header->bitmap_address = 1;
 
-	g_file_system_header->bitmap_size = factor * BITMAP_BLOCK_PER_GB;
+    g_file_system_header->bitmap_size = factor * BITMAP_BLOCK_PER_GB;
 
-	// ³õÊ¼»¯SET
-	g_file_system_header->amount_of_set = AMOUNT_OF_SET;
-	SET *set = g_file_system_header->set;
+    // åˆå§‹åŒ–SET
+    g_file_system_header->amount_of_set = AMOUNT_OF_SET;
+    SET *set = g_file_system_header->set;
 
-	int total_group = 0;
-	for(int i = 0; i < AMOUNT_OF_SET; i++)
-	{
-		set[i].amount_of_group = (i != AMOUNT_OF_SET - 1) ? (2 * (int)pow(4.0, i)) : (disk_size / GB * GROUP_PER_GB - total_group);
-		total_group += set[i].amount_of_group;
-		set[i].max_size = 8 * (int)pow(16.0, i) / (BLOCK_SIZE / KB);
-		set[i].begin = (i != 0) ? (set[i-1].end + 1) : 0;
-		set[i].end = set[i].begin + BYTES_PER_GROUP / BLOCK_SIZE * set[i].amount_of_group / 8 - 1;
-		set[i].free_block = BYTES_PER_GROUP / BLOCK_SIZE * set[i].amount_of_group;
-		set[i].last_search = set[i].begin;
-	}
-	// 0ºÅÈºËÑË÷Î»ÖÃÌø¹ıÎÄ¼şÏµÍ³Í·µÄÎ»Í¼
-	set[0].begin = g_file_system_header->root_address / 8;
-	set[0].last_search = set[0].begin;
-	// 3ºÅÈº
-	set[3].max_size = INT_MAX;
-	set[3].end = g_file_system_header->bitmap_size * BLOCK_SIZE - 1;
+    int total_group = 0;
+    for (int i = 0; i < AMOUNT_OF_SET; i++) {
+        set[i].amount_of_group = (i != AMOUNT_OF_SET - 1) ? (2 * (int) pow(4.0, i)) : (disk_size / GB * GROUP_PER_GB -
+                                                                                       total_group);
+        total_group += set[i].amount_of_group;
+        set[i].max_size = 8 * (int) pow(16.0, i) / (BLOCK_SIZE / KB);
+        set[i].begin = (i != 0) ? (set[i - 1].end + 1) : 0;
+        set[i].end = set[i].begin + BYTES_PER_GROUP / BLOCK_SIZE * set[i].amount_of_group / 8 - 1;
+        set[i].free_block = BYTES_PER_GROUP / BLOCK_SIZE * set[i].amount_of_group;
+        set[i].last_search = set[i].begin;
+    }
+    // 0å·ç¾¤æœç´¢ä½ç½®è·³è¿‡æ–‡ä»¶ç³»ç»Ÿå¤´çš„ä½å›¾
+    set[0].begin = g_file_system_header->root_address / 8;
+    set[0].last_search = set[0].begin;
+    // 3å·ç¾¤
+    set[3].max_size = INT_MAX;
+    set[3].end = g_file_system_header->bitmap_size * BLOCK_SIZE - 1;
 
-	// ³õÊ¼»¯Î»Í¼
-	for(int i = 0; i < g_file_system_header->bitmap_size; i++)
-	{
-		status = miniWriteBlock(i + g_file_system_header->bitmap_address, BLOCK_SIZE, buffer);
-		if(status != ERR_SUCCESS)
-		{
-			DbgPrint(status);
-			return status;
-		}
-	}
+    // åˆå§‹åŒ–ä½å›¾
+    for (int i = 0; i < g_file_system_header->bitmap_size; i++) {
+        status = miniWriteBlock(i + g_file_system_header->bitmap_address, BLOCK_SIZE, buffer);
+        if (status != ERR_SUCCESS) {
+            DbgPrint(status);
+            return status;
+        }
+    }
 
-	// rootÎÄ¼şÍ·¿é
-	g_file_system_header->root_address = g_file_system_header->bitmap_address + g_file_system_header->bitmap_size;
-	if(g_root == NULL)
-		InitRoot();
-	HEADER *h = g_root->self;
-	strcpy(h->name, "root");
-	h->create_time = h->modified_time = h->access_time = _time64(NULL);
-	h->file_size = 0;
-	h->hidden = 0;
-	h->is_file = IS_DIR;
-	h->access = MAKE_ACCESS(1, 0, 1);
-	h->allocate_table_number = 1;
-	h->table_block_number[0] = g_file_system_header->root_address + 1;
-	miniWriteBlock(g_file_system_header->root_address, BLOCK_SIZE, h);
-	miniWriteBlock(g_file_system_header->root_address + 1, BLOCK_SIZE, buffer);
+    // rootæ–‡ä»¶å¤´å—
+    g_file_system_header->root_address = g_file_system_header->bitmap_address + g_file_system_header->bitmap_size;
+    if (g_root == NULL)
+        InitRoot();
+    HEADER *h = g_root->self;
+    strcpy(h->name, "root");
+    h->create_time = h->modified_time = h->access_time = time(NULL);
+    h->file_size = 0;
+    h->hidden = 0;
+    h->is_file = IS_DIR;
+    h->access = MAKE_ACCESS(1, 0, 1);
+    h->allocate_table_number = 1;
+    h->table_block_number[0] = g_file_system_header->root_address + 1;
+    miniWriteBlock(g_file_system_header->root_address, BLOCK_SIZE, h);
+    miniWriteBlock(g_file_system_header->root_address + 1, BLOCK_SIZE, buffer);
 
-	if(g_bitmap == NULL)
-		CacheBitmap();
-	memset(g_bitmap, 0, g_file_system_header->bitmap_size * BLOCK_SIZE);
-	// ±ê¼ÇÎÄ¼şÏµÍ³Í·¡¢Î»Í¼¡¢rootÎÄ¼şÍ·¡¢rootÄ¿Â¼·ÖÅä±í
-	for(int i = 0; i <= g_file_system_header->bitmap_size + 2; i++)
-	{
-		UpdateBitmap(i, 1);
-	}
-	fflush(g_storage);
+    if (g_bitmap == NULL)
+        CacheBitmap();
+    memset(g_bitmap, 0, g_file_system_header->bitmap_size * BLOCK_SIZE);
+    // æ ‡è®°æ–‡ä»¶ç³»ç»Ÿå¤´ã€ä½å›¾ã€rootæ–‡ä»¶å¤´ã€rootç›®å½•åˆ†é…è¡¨
+    for (int i = 0; i <= g_file_system_header->bitmap_size + 2; i++) {
+        UpdateBitmap(i, 1);
+    }
+    fflush(g_storage);
 
-	g_file_system_header->amount_of_free_block -= (g_file_system_header->bitmap_size + 3);
+    g_file_system_header->amount_of_free_block -= (g_file_system_header->bitmap_size + 3);
 
-	status = miniWriteBlock(0, BLOCK_SIZE, g_file_system_header);
-	return status;
+    status = miniWriteBlock(0, BLOCK_SIZE, g_file_system_header);
+    return status;
 }
 
-bool miniEnoughSpace(FILE_DESCRIPTOR *fd)
-{
-	__int64 file_size = fd->self->file_size;
-	__int64 system_free = g_file_system_header->amount_of_free_block * BLOCK_SIZE;
+bool miniEnoughSpace(FILE_DESCRIPTOR *fd) {
+    long long file_size = fd->self->file_size;
+    long long system_free = g_file_system_header->amount_of_free_block * BLOCK_SIZE;
 
-	return file_size < system_free;
+    return file_size < system_free;
 }
 
-bool miniEnoughSpace(FILE *fd)
-{
-	__int64 pos = _ftelli64(fd);
-	_fseeki64(fd, 0, SEEK_END);
-	__int64 file_size = _ftelli64(fd);
-	_fseeki64(fd, pos, SEEK_SET);
+bool miniEnoughSpace(FILE *fd) {
+    long long pos = ftell(fd);
+    fseek(fd, 0, SEEK_END);
+    long long file_size = ftell(fd);
+    fseek(fd, pos, SEEK_SET);
 
-	__int64 system_free = g_file_system_header->amount_of_free_block * BLOCK_SIZE;
+    long long system_free = g_file_system_header->amount_of_free_block * BLOCK_SIZE;
 
-	return file_size < system_free;
+    return file_size < system_free;
 }
 
 ERROR_CODE GetSearchStart(char *path, DIRECTORY_DESCRIPTOR **p_dd)
@@ -220,53 +210,48 @@ ERROR_CODE miniInitFileSystem(void)
 	return ERR_SUCCESS;
 }
 
-ERROR_CODE CheckFileSystem(void)
-{
-	// ÏµÍ³Í·±êÊ¶·û
-	if(memcmp(g_file_system_header->magic, MAGIC, strlen(MAGIC)) != 0)
-		return ERR_UNKNOWN_FILE_SYSTEM;
+ERROR_CODE CheckFileSystem(void) {
+    // ç³»ç»Ÿå¤´æ ‡è¯†ç¬¦
+    if (memcmp(g_file_system_header->magic, MAGIC, strlen(MAGIC)) != 0)
+        return ERR_UNKNOWN_FILE_SYSTEM;
 
-	// Ğ£Ñé¿éĞÅÏ¢
-	__int64 disk_size;
-	_fseeki64(g_storage, 0, SEEK_END);
-	disk_size = _ftelli64(g_storage);
-	_fseeki64(g_storage, 0, SEEK_SET);
+    // æ ¡éªŒå—ä¿¡æ¯
+    long long disk_size;
+    fseek(g_storage, 0, SEEK_END);
+    disk_size = ftell(g_storage);
+    fseek(g_storage, 0, SEEK_SET);
 
-	int amount_of_block = disk_size / BLOCK_SIZE;
-	if(g_file_system_header->amount_of_block != amount_of_block)
-		return ERR_NOT_FORMATED;
+    int amount_of_block = disk_size / BLOCK_SIZE;
+    if (g_file_system_header->amount_of_block != amount_of_block)
+        return ERR_NOT_FORMATED;
 
-	// Ğ£ÑéÎ»Í¼ĞÅÏ¢
-	if(g_file_system_header->bitmap_address != 1 ||
-		g_file_system_header->bitmap_size != disk_size / GB * BITMAP_BLOCK_PER_GB)
-		return ERR_NOT_FORMATED;
+    // æ ¡éªŒä½å›¾ä¿¡æ¯
+    if (g_file_system_header->bitmap_address != 1 ||
+        g_file_system_header->bitmap_size != disk_size / GB * BITMAP_BLOCK_PER_GB)
+        return ERR_NOT_FORMATED;
 
-	// Ğ£Ñéroot
-	if(g_file_system_header->root_address != g_file_system_header->bitmap_address + g_file_system_header->bitmap_size)
-		return ERR_NOT_FORMATED;
+    // æ ¡éªŒroot
+    if (g_file_system_header->root_address != g_file_system_header->bitmap_address + g_file_system_header->bitmap_size)
+        return ERR_NOT_FORMATED;
 
-	// Ğ£ÑéÈº
-	if(g_file_system_header->amount_of_set != AMOUNT_OF_SET)
-		return ERR_NOT_FORMATED;
+    // æ ¡éªŒç¾¤
+    if (g_file_system_header->amount_of_set != AMOUNT_OF_SET)
+        return ERR_NOT_FORMATED;
 
-	return ERR_SUCCESS;
+    return ERR_SUCCESS;
 }
-ERROR_CODE CacheFileSystemHeader(void)
-{
-	g_file_system_header = (FILE_SYSTEM_HEADER*)calloc(1,BLOCK_SIZE);
-	memset(g_file_system_header, 0, BLOCK_SIZE);
-	miniReadBlock(0, BLOCK_SIZE, g_file_system_header);
+ERROR_CODE CacheFileSystemHeader(void) {
+    g_file_system_header = (FILE_SYSTEM_HEADER *) calloc(1, BLOCK_SIZE);
+    memset(g_file_system_header, 0, BLOCK_SIZE);
+    miniReadBlock(0, BLOCK_SIZE, g_file_system_header);
 
-	// ĞéÄâ´ÅÅÌÃ»ÓĞ¸ñÊ½»¯
-	if(CheckFileSystem() != ERR_SUCCESS)
-	{
-		free(g_file_system_header);
-		return ERR_NOT_FORMATED;
-	}
-	else
-	{
-		return ERR_SUCCESS;
-	}
+    // è™šæ‹Ÿç£ç›˜æ²¡æœ‰æ ¼å¼åŒ–
+    if (CheckFileSystem() != ERR_SUCCESS) {
+        free(g_file_system_header);
+        return ERR_NOT_FORMATED;
+    } else {
+        return ERR_SUCCESS;
+    }
 }
 
 ERROR_CODE CacheBitmap(void)
@@ -286,23 +271,22 @@ ERROR_CODE CacheBitmap(void)
 	return ERR_SUCCESS;
 }
 
-ERROR_CODE InitRoot(void)
-{
-	DIRECTORY_DESCRIPTOR *root;
-	root = (DIRECTORY_DESCRIPTOR*)calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
-	root->offset = 0;
-	root->dir = (DIRECTORY_HEADER*)calloc(1, BLOCK_SIZE);
+ERROR_CODE InitRoot(void) {
+    DIRECTORY_DESCRIPTOR *root;
+    root = (DIRECTORY_DESCRIPTOR *) calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
+    root->offset = 0;
+    root->dir = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
 
-	// ÎÄ¼şÍ·Ö¸Õë
-	void *buf = calloc(1, BLOCK_SIZE);
-	miniReadBlock(g_file_system_header->root_address, BLOCK_SIZE, buf);
-	root->self = (HEADER*)buf;
+    // æ–‡ä»¶å¤´æŒ‡é’ˆ
+    void *buf = calloc(1, BLOCK_SIZE);
+    miniReadBlock(g_file_system_header->root_address, BLOCK_SIZE, buf);
+    root->self = (HEADER *) buf;
 
-	// ·ÖÅä±í»º´æ
-	root->table_buffer = calloc(1, BLOCK_SIZE);
+    // åˆ†é…è¡¨ç¼“å­˜
+    root->table_buffer = calloc(1, BLOCK_SIZE);
 
-	g_root = root;
-	return ERR_SUCCESS;
+    g_root = root;
+    return ERR_SUCCESS;
 }
 
 ERROR_CODE InitCurrentDir(void)
@@ -323,59 +307,51 @@ ERROR_CODE InitCurrentDir(void)
 }
 
 /*
-* ËµÃ÷£º»ñµÃp_dhÄ¿Â¼ÏÂµÄname×ÓÄ¿Â¼p_child_dh¡£
-*      p_dhºÍp_child_dh¿ÉÒÔÎªÍ¬Ò»¸ö»º³åÇø
-* ²ÎÊı£ºname, Ä¿Â¼Ãû
-*      p_dh, ¸¸Ä¿Â¼Í·
-* Êä³ö£ºp_child_dh, ×ÓÄ¿Â¼Í·
-*      p_child_block£¬×ÓÄ¿Â¼Í·µÄ¿éºÅ
+* è¯´æ˜ï¼šè·å¾—p_dhç›®å½•ä¸‹çš„nameå­ç›®å½•p_child_dhã€‚
+*      p_dhå’Œp_child_dhå¯ä»¥ä¸ºåŒä¸€ä¸ªç¼“å†²åŒº
+* å‚æ•°ï¼šname, ç›®å½•å
+*      p_dh, çˆ¶ç›®å½•å¤´
+* è¾“å‡ºï¼šp_child_dh, å­ç›®å½•å¤´
+*      p_child_blockï¼Œå­ç›®å½•å¤´çš„å—å·
 */
-ERROR_CODE GetChildDirectory(char *name, DIRECTORY_HEADER *p_dh, DIRECTORY_HEADER *p_child_dh, int *p_child_block)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	unsigned char buf[BLOCK_SIZE];
+ERROR_CODE GetChildDirectory(char *name, DIRECTORY_HEADER *p_dh, DIRECTORY_HEADER *p_child_dh, int *p_child_block) {
+    ERROR_CODE status = ERR_SUCCESS;
+    unsigned char buf[BLOCK_SIZE];
 
-	// ±éÀúËùÓĞ·ÖÅä±í
-	for(int i = 0; i < p_dh->allocate_table_number; i++)
-	{
-		// ¶ÁÈ¡Ä¿Â¼·ÖÅä±í
-		status = miniReadBlock(p_dh->table_block_number[i], BLOCK_SIZE, buf);
-		if(status != ERR_SUCCESS)
-		{
-			DbgPrint(status);
-			return status;
-		}
+    // éå†æ‰€æœ‰åˆ†é…è¡¨
+    for (int i = 0; i < p_dh->allocate_table_number; i++) {
+        // è¯»å–ç›®å½•åˆ†é…è¡¨
+        status = miniReadBlock(p_dh->table_block_number[i], BLOCK_SIZE, buf);
+        if (status != ERR_SUCCESS) {
+            DbgPrint(status);
+            return status;
+        }
 
-		// ±éÀúÄ¿Â¼·ÖÅä±í
-		register DIRECTORY_ALLOCATE_TABLE *dir = (DIRECTORY_ALLOCATE_TABLE*)buf;
-		for(int dir_index = 0; dir_index < dir->amount_of_entry; dir_index++)
-		{
-			// Ä¿Â¼ÃûÆ¥Åä
-			if(strcmp(name, dir->entry[dir_index].name) == 0)
-			{
-				int child_block = dir->entry[dir_index].block_number;
-				// Ä¿Â¼ÃûÆ¥Åä³É¹¦¾Í¶ÁÈ¡Ä¿Â¼µÄÎÄ¼şÍ·
-				status = miniReadBlock(child_block, BLOCK_SIZE, buf);
-				if(status != ERR_SUCCESS)
-				{
-				    DbgPrint(status);
-				    return status;
-				}
+        // éå†ç›®å½•åˆ†é…è¡¨
+        register DIRECTORY_ALLOCATE_TABLE *dir = (DIRECTORY_ALLOCATE_TABLE *) buf;
+        for (int dir_index = 0; dir_index < dir->amount_of_entry; dir_index++) {
+            // ç›®å½•ååŒ¹é…
+            if (strcmp(name, dir->entry[dir_index].name) == 0) {
+                int child_block = dir->entry[dir_index].block_number;
+                // ç›®å½•ååŒ¹é…æˆåŠŸå°±è¯»å–ç›®å½•çš„æ–‡ä»¶å¤´
+                status = miniReadBlock(child_block, BLOCK_SIZE, buf);
+                if (status != ERR_SUCCESS) {
+                    DbgPrint(status);
+                    return status;
+                }
 
-				DIRECTORY_HEADER *dir_header = (DIRECTORY_HEADER*)buf;
-				if(dir_header->is_file == IS_DIR)
-				{
-					// Ìî³äÄ¿Â¼ÎÄ¼şÍ·p_child_dh
-					memcpy(p_child_dh, dir_header, BLOCK_SIZE);
-					*p_child_block = child_block;
-					return ERR_SUCCESS;
-				}
-				else
-				{
-					// ÀàĞÍ²»Æ¥Åä
-					*p_child_block = -1;
-					return ERR_TYPE_MISMATCH;
-				}
+                DIRECTORY_HEADER *dir_header = (DIRECTORY_HEADER *) buf;
+                if (dir_header->is_file == IS_DIR) {
+                    // å¡«å……ç›®å½•æ–‡ä»¶å¤´p_child_dh
+                    memcpy(p_child_dh, dir_header, BLOCK_SIZE);
+                    *p_child_block = child_block;
+                    return ERR_SUCCESS;
+                }
+				else {
+                    // ç±»å‹ä¸åŒ¹é…
+                    *p_child_block = -1;
+                    return ERR_TYPE_MISMATCH;
+                }
 			}
 		}
 	}
@@ -384,55 +360,47 @@ ERROR_CODE GetChildDirectory(char *name, DIRECTORY_HEADER *p_dh, DIRECTORY_HEADE
 }
 
 /*
-* ËµÃ÷£º»ñµÃp_dhÏÂµÄÎÄ¼şnameµÄÎÄ¼şÍ·p_fh
-* ²ÎÊı£ºname£¬ÎÄ¼şÃû
-*      p_dh£¬ËùÔÚÄ¿Â¼Í·
-* Êä³ö£ºp_fh£¬ÎÄ¼şÍ·
+* è¯´æ˜ï¼šè·å¾—p_dhä¸‹çš„æ–‡ä»¶nameçš„æ–‡ä»¶å¤´p_fh
+* å‚æ•°ï¼šnameï¼Œæ–‡ä»¶å
+*      p_dhï¼Œæ‰€åœ¨ç›®å½•å¤´
+* è¾“å‡ºï¼šp_fhï¼Œæ–‡ä»¶å¤´
 */
-ERROR_CODE GetChildFile(char *name, DIRECTORY_HEADER *p_dh, FILE_HEADER *p_fh, int *file_block)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	unsigned char buf[BLOCK_SIZE];
+ERROR_CODE GetChildFile(char *name, DIRECTORY_HEADER *p_dh, FILE_HEADER *p_fh, int *file_block) {
+    ERROR_CODE status = ERR_SUCCESS;
+    unsigned char buf[BLOCK_SIZE];
 
-	// ±éÀúËùÓĞ·ÖÅä±í
-	for(int i = 0; i < p_dh->allocate_table_number; i++)
-	{
-		status = miniReadBlock(p_dh->table_block_number[i], BLOCK_SIZE, buf);
-		if(status != ERR_SUCCESS)
-		{
-			DbgPrint(status);
-			return status;
-		}
+    // éå†æ‰€æœ‰åˆ†é…è¡¨
+    for (int i = 0; i < p_dh->allocate_table_number; i++) {
+        status = miniReadBlock(p_dh->table_block_number[i], BLOCK_SIZE, buf);
+        if (status != ERR_SUCCESS) {
+            DbgPrint(status);
+            return status;
+        }
 
-		// ±éÀúÄ¿Â¼·ÖÅä±í
-		DIRECTORY_ALLOCATE_TABLE *dir = (DIRECTORY_ALLOCATE_TABLE*)buf;
-		for(int dir_index = 0; dir_index < dir->amount_of_entry; dir_index++)
-		{
-			if(strcmp(name, dir->entry[dir_index].name) == 0)
-			{
-				// ÎÄ¼şÃûÆ¥Åä³É¹¦¾Í¶ÁÈ¡ÎÄ¼şµÄÎÄ¼şÍ·
-				int block = dir->entry[dir_index].block_number;
-				status = miniReadBlock(block, BLOCK_SIZE, buf);
-				if(status != ERR_SUCCESS)
-				{
-				    DbgPrint(status);
-				    return status;
-				}
+        // éå†ç›®å½•åˆ†é…è¡¨
+        DIRECTORY_ALLOCATE_TABLE *dir = (DIRECTORY_ALLOCATE_TABLE *) buf;
+        for (int dir_index = 0; dir_index < dir->amount_of_entry; dir_index++) {
+            if (strcmp(name, dir->entry[dir_index].name) == 0) {
+                // æ–‡ä»¶ååŒ¹é…æˆåŠŸå°±è¯»å–æ–‡ä»¶çš„æ–‡ä»¶å¤´
+                int block = dir->entry[dir_index].block_number;
+                status = miniReadBlock(block, BLOCK_SIZE, buf);
+                if (status != ERR_SUCCESS) {
+                    DbgPrint(status);
+                    return status;
+                }
 
-				FILE_HEADER *file = (FILE_HEADER*)buf;
-				if(file->is_file == IS_FILE)
-				{
-					// Ìî³äÎÄ¼şÍ·p_fh
-					memcpy(p_fh, file, BLOCK_SIZE);
-					*file_block = block;
-					return ERR_SUCCESS;
-				}
-				else
-				{
-					// ÀàĞÍ²»Æ¥Åä
-					*file_block = -1;
-					return ERR_TYPE_MISMATCH;
-				}
+                FILE_HEADER *file = (FILE_HEADER *) buf;
+                if (file->is_file == IS_FILE) {
+                    // å¡«å……æ–‡ä»¶å¤´p_fh
+                    memcpy(p_fh, file, BLOCK_SIZE);
+                    *file_block = block;
+                    return ERR_SUCCESS;
+                }
+				else {
+                    // ç±»å‹ä¸åŒ¹é…
+                    *file_block = -1;
+                    return ERR_TYPE_MISMATCH;
+                }
 			}
 		}
 	}
@@ -441,43 +409,40 @@ ERROR_CODE GetChildFile(char *name, DIRECTORY_HEADER *p_dh, FILE_HEADER *p_fh, i
 }
 
 /*
-* ²ÎÊı£ºpath - miniCreateFileºÍminiCreateDirectoryµÄ²ÎÊıpath
-*      p_dir_block - ¸¸Ä¿Â¼Í·¿éºÅ
-* ËµÃ÷£ºpath¾­¹ıÍâ²ãÔ¤´¦ÀíÖ®ºóµÄĞÎÊ½Îª/path/to/file
+* å‚æ•°ï¼špath - miniCreateFileå’ŒminiCreateDirectoryçš„å‚æ•°path
+*      p_dir_block - çˆ¶ç›®å½•å¤´å—å·
+* è¯´æ˜ï¼špathç»è¿‡å¤–å±‚é¢„å¤„ç†ä¹‹åçš„å½¢å¼ä¸º/path/to/file
 */
-ERROR_CODE GetParentDirectory(char *path, DIRECTORY_HEADER *p_dh, int *dir_block)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	char tmp[MAX_PATH_NAME + 1];
-	int length = strlen(path);
-	strncpy(tmp, path, (length < MAX_PATH_NAME) ? length : MAX_PATH_NAME);
+ERROR_CODE GetParentDirectory(char *path, DIRECTORY_HEADER *p_dh, int *dir_block) {
+    ERROR_CODE status = ERR_SUCCESS;
+    char tmp[MAX_PATH_NAME + 1];
+    int length = strlen(path);
+    strncpy(tmp, path, (length < MAX_PATH_NAME) ? length : MAX_PATH_NAME);
 
-	// ±£Ö¤Â·¾¶Î²Ã»ÓĞ'/'
-	if(tmp[length - 1] == '/')
-		tmp[length - 1] = '\0';
+    // ä¿è¯è·¯å¾„å°¾æ²¡æœ‰'/'
+    if (tmp[length - 1] == '/')
+        tmp[length - 1] = '\0';
 
-	// '/'×ÜÊı
-	int slash_total = 0;
-	for(int i = 0; i < length; i++)
-		if(tmp[i] == '/')
-			slash_total++;
+    // '/'æ€»æ•°
+    int slash_total = 0;
+    for (int i = 0; i < length; i++)
+        if (tmp[i] == '/')
+            slash_total++;
 
-	// ÉèÖÃÆğÊ¼ËÑË÷Â·¾¶
-	DIRECTORY_DESCRIPTOR *start = NULL;
-	GetSearchStart(path, &start);
-	memcpy(p_dh, start->self, BLOCK_SIZE);
+    // è®¾ç½®èµ·å§‹æœç´¢è·¯å¾„
+    DIRECTORY_DESCRIPTOR *start = NULL;
+    GetSearchStart(path, &start);
+    memcpy(p_dh, start->self, BLOCK_SIZE);
 
-	// Öğ²ã½âÎöÄ¿Â¼
-	char *token = strtok(tmp, PATH_SEPS);
-	int index = 1;
-	int block = -1;
-	while(index <= slash_total - 1)
-	{
-		status = GetChildDirectory(token, p_dh, p_dh, &block);
-		if(status != ERR_SUCCESS)
-		{
-			DbgPrint(status);
-			return status;
+    // é€å±‚è§£æç›®å½•
+    char *token = strtok(tmp, PATH_SEPS);
+    int index = 1;
+    int block = -1;
+    while (index <= slash_total - 1) {
+        status = GetChildDirectory(token, p_dh, p_dh, &block);
+        if (status != ERR_SUCCESS) {
+            DbgPrint(status);
+            return status;
 		}
 		token = strtok(NULL, PATH_SEPS);
 
@@ -485,17 +450,16 @@ ERROR_CODE GetParentDirectory(char *path, DIRECTORY_HEADER *p_dh, int *dir_block
 	}
 	if(block != -1)
 		*dir_block = block;
-	else
-	{
-		// ¸¸Ä¿Â¼ÊÇ¸ùÄ¿Â¼
-		memcpy(p_dh, g_root->self, BLOCK_SIZE);
-		*dir_block = g_file_system_header->root_address;
-	}
+	else {
+        // çˆ¶ç›®å½•æ˜¯æ ¹ç›®å½•
+        memcpy(p_dh, g_root->self, BLOCK_SIZE);
+        *dir_block = g_file_system_header->root_address;
+    }
 	return ERR_SUCCESS;
 }
 
 /*
-* Â·¾¶Ãû¼ì²éË³Ğò£º³¤¶È²»µÃ³¬¹ıMAX_PATH_NAME£¬Â·¾¶ÖĞ²»µÃÓĞ·Ç·¨×Ö·û£¬½«Â·¾¶¿ªÊ¼´¦µÄ".."Ô¤´¦Àí³Éµ±Ç°Ä¿Â¼µÄ¸¸Ä¿Â¼
+* è·¯å¾„åæ£€æŸ¥é¡ºåºï¼šé•¿åº¦ä¸å¾—è¶…è¿‡MAX_PATH_NAMEï¼Œè·¯å¾„ä¸­ä¸å¾—æœ‰éæ³•å­—ç¬¦ï¼Œå°†è·¯å¾„å¼€å§‹å¤„çš„".."é¢„å¤„ç†æˆå½“å‰ç›®å½•çš„çˆ¶ç›®å½•
 */
 ERROR_CODE PreProcessPath(char *path)
 {
@@ -513,231 +477,206 @@ ERROR_CODE PreProcessPath(char *path)
 		length++;
 	}
 
-	for(int i = 0; i < length; i++)
-	{
-		if(path[i] != '/' && path[i] != '.' && !isalpha(path[i]) && !isdigit(path[i]))
-			return ERR_INVALID_FILE_NAME;
-	}
+    for (int i = 0; i < length; i++) {
+        if (path[i] != '/' && path[i] != '.' && !isalpha(path[i]) && !isdigit(path[i]))
+            return ERR_INVALID_FILE_NAME;
+    }
 
-	char tmp[MAX_PATH_NAME];
-	int cur_length = strlen(g_current_path);
-	
-	// ·µ»ØÉÏ¼¶Â·¾¶
-	if(path[0] == '.' && path[1] == '.' && path[2] == '/')
-	{
-		if(strcmp(g_current_path, "/") == 0)
-		{
-			// ¸ùÄ¿Â¼Ã»ÓĞ¸¸Ä¿Â¼
-			return ERR_INVALID_FILE_NAME;
-		}
+    char tmp[MAX_PATH_NAME];
+    int cur_length = strlen(g_current_path);
 
-		if(cur_length + length - 2 > MAX_PATH_NAME)
-			return ERR_PATH_TOO_LONG;
+    // è¿”å›ä¸Šçº§è·¯å¾„
+    if (path[0] == '.' && path[1] == '.' && path[2] == '/') {
+        if (strcmp(g_current_path, "/") == 0) {
+            // æ ¹ç›®å½•æ²¡æœ‰çˆ¶ç›®å½•
+            return ERR_INVALID_FILE_NAME;
+        }
 
-		int last_slash_pos = cur_length - 1;
-		for(;last_slash_pos >= 0; last_slash_pos--)
-		{
-			if(g_current_path[last_slash_pos] == '/')
-				break;
-		}
-		// Ìø¹ı¿ªÍ·µÄ".."
-		strncpy(tmp, &path[2], MAX_PATH_NAME);
-		/* tmpÖĞ±Ø¶¨ÒÔ'/'¿ªÍ·£¬Èç¹ûg_current_pathÖ»ÓĞÒ»¸ö'/'(/xxx)£¬
-		*  Ôòlast_slash_pos == 0£¬strncpy²»¸´ÖÆg_current_path£¬
-		*  strcatºó¼´ÎªÕıÈ·Â·¾¶
-		*/ 
-		strncpy(path, g_current_path, last_slash_pos);
-		path[last_slash_pos] = '\0';
-		strcat(path, tmp);
-		length = strlen(path);
-	}
-	else if(path[0] != '/')
-	{
-		if(cur_length + length > MAX_PATH_NAME)
-			return ERR_PATH_TOO_LONG;
-		strcpy(tmp, g_current_path);
-		// µ±Ç°Ä¿Â¼²»ÊÇ¸ùÄ¿Â¼Ê±ÔÚÂ·¾¶ºó²¹'/'
-		if(!(cur_length == 1 && g_current_path[0] == '/'))
-		{
-			tmp[cur_length] = '/';
-			tmp[cur_length + 1] = '\0';
-		}
-		strcat(tmp, path);
-		strcpy(path, tmp);
-		length = strlen(path);
-	}
-	if(length != 1 && path[length - 1] == '/')
-		path[length - 1] = '\0';
-	return ERR_SUCCESS;
+        if (cur_length + length - 2 > MAX_PATH_NAME)
+            return ERR_PATH_TOO_LONG;
+
+        int last_slash_pos = cur_length - 1;
+        for (; last_slash_pos >= 0; last_slash_pos--) {
+            if (g_current_path[last_slash_pos] == '/')
+                break;
+        }
+        // è·³è¿‡å¼€å¤´çš„".."
+        strncpy(tmp, &path[2], MAX_PATH_NAME);
+        /* tmpä¸­å¿…å®šä»¥'/'å¼€å¤´ï¼Œå¦‚æœg_current_pathåªæœ‰ä¸€ä¸ª'/'(/xxx)ï¼Œ
+        *  åˆ™last_slash_pos == 0ï¼Œstrncpyä¸å¤åˆ¶g_current_pathï¼Œ
+        *  strcatåå³ä¸ºæ­£ç¡®è·¯å¾„
+        */
+        strncpy(path, g_current_path, last_slash_pos);
+        path[last_slash_pos] = '\0';
+        strcat(path, tmp);
+        length = strlen(path);
+    }
+	else if(path[0] != '/') {
+        if (cur_length + length > MAX_PATH_NAME)
+            return ERR_PATH_TOO_LONG;
+        strcpy(tmp, g_current_path);
+        // å½“å‰ç›®å½•ä¸æ˜¯æ ¹ç›®å½•æ—¶åœ¨è·¯å¾„åè¡¥'/'
+        if (!(cur_length == 1 && g_current_path[0] == '/')) {
+            tmp[cur_length] = '/';
+            tmp[cur_length + 1] = '\0';
+        }
+        strcat(tmp, path);
+        strcpy(path, tmp);
+        length = strlen(path);
+    }
+    if (length != 1 && path[length - 1] == '/')
+        path[length - 1] = '\0';
+    return ERR_SUCCESS;
 }
+
 /*
-* ²ÎÊı£ºsize£ºÎÄ¼şÊµ¼ÊÊı¾İ´óĞ¡¡£rÄ£Ê½ºöÂÔ¸Ã²ÎÊı£¬Ö»¶ÔwÄ£Ê½ÓĞĞ§£¨µ¥Î»£º×Ö½Ú£©
+* å‚æ•°ï¼šsizeï¼šæ–‡ä»¶å®é™…æ•°æ®å¤§å°ã€‚ræ¨¡å¼å¿½ç•¥è¯¥å‚æ•°ï¼Œåªå¯¹wæ¨¡å¼æœ‰æ•ˆï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰
 *      
 */
-ERROR_CODE miniCreateFile(char *path, __int64 size, char *mode, FILE_DESCRIPTOR **p_fd)
-{
-	ERROR_CODE status = ERR_SUCCESS;
+ERROR_CODE miniCreateFile(char *path, long long size, char *mode, FILE_DESCRIPTOR **p_fd) {
+    ERROR_CODE status = ERR_SUCCESS;
 
-	status = PreProcessPath(path);
-	if(status != ERR_SUCCESS)
-	{
-		DbgPrint(status);
-		return ERR_INVALID_FILE_NAME;
-	}
+    status = PreProcessPath(path);
+    if (status != ERR_SUCCESS) {
+        DbgPrint(status);
+        return ERR_INVALID_FILE_NAME;
+    }
 
-	DIRECTORY_HEADER *dh = (DIRECTORY_HEADER*)calloc(1,BLOCK_SIZE);
-	// Ä¿Â¼Í·µÄ¿éºÅ
-	int dir_block = 0;
-	status = GetParentDirectory(path, dh, &dir_block);
-	if(status != ERR_SUCCESS)
-	{
-		DbgPrint(status);
-		free(dh);
-		return status;
-	}
+    DIRECTORY_HEADER *dh = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
+    // ç›®å½•å¤´çš„å—å·
+    int dir_block = 0;
+    status = GetParentDirectory(path, dh, &dir_block);
+    if (status != ERR_SUCCESS) {
+        DbgPrint(status);
+        free(dh);
+        return status;
+    }
 
-	// ×îºóÒ»¸öĞ±¸ÜÎ»ÖÃ¡£ÎÄ¼şÃûÆğÊ¼ÔÚlast_slash_pos + 1´¦
-	int last_slash_pos = -1;
-	for(int i = strlen(path) - 1; i >= 0; i--)
-		if(path[i] == '/')
-		{
-			last_slash_pos = i;
-			break;
-		}
+    // æœ€åä¸€ä¸ªæ–œæ ä½ç½®ã€‚æ–‡ä»¶åèµ·å§‹åœ¨last_slash_pos + 1å¤„
+    int last_slash_pos = -1;
+    for (int i = strlen(path) - 1; i >= 0; i--)
+        if (path[i] == '/') {
+            last_slash_pos = i;
+            break;
+        }
 
-	// ¼ì²éĞÂ½¨µÄÎÄ¼şÃû³¤¶È
-	int path_len = strlen(path);
-	if(path_len - last_slash_pos - 1 > MAX_NAME)
-		return ERR_INVALID_FILE_NAME;
-	FILE_HEADER *fh = (FILE_HEADER*)calloc(1,BLOCK_SIZE);
-	int file_block = 0;
-	status = GetChildFile(&path[last_slash_pos + 1], dh, fh, &file_block);
-	if(mode[0] == 'r')
-	{
-		if(status != ERR_SUCCESS)
-		{
+    // æ£€æŸ¥æ–°å»ºçš„æ–‡ä»¶åé•¿åº¦
+    int path_len = strlen(path);
+    if (path_len - last_slash_pos - 1 > MAX_NAME)
+        return ERR_INVALID_FILE_NAME;
+    FILE_HEADER *fh = (FILE_HEADER *) calloc(1, BLOCK_SIZE);
+    int file_block = 0;
+    status = GetChildFile(&path[last_slash_pos + 1], dh, fh, &file_block);
+    if (mode[0] == 'r') {
+        if (status != ERR_SUCCESS) {
 			DbgPrint(status);
 			free(dh);
 			free(fh);
 			return status;
 		}
-		else
-		{
-			fh->access_time = _time64(NULL);
-		}
+		else {
+            fh->access_time = time(NULL);
+        }
 	}
 
-	if(mode[0] == 'w')
-	{
-		if(status == ERR_SUCCESS)
-		{
-			fh->access_time = fh->modified_time = _time64(NULL);
-		}
-		// wÄ£Ê½ÈôÎÄ¼ş²»´æÔÚÔò´´½¨
-		if(status == ERR_NOT_FOUND)
-		{
-			status = NewEmptyItem(&path[last_slash_pos + 1], size, dh, dir_block, fh, &file_block);
-			if(status != ERR_SUCCESS)
-			{
-				DbgPrint(status);
-				free(dh);
-				free(fh);
-				return status;
-			}
-		}
-		else	// ÆäËû´íÎó·µ»Ø´íÎó×´Ì¬
-		{
-			DbgPrint(status);
-			free(dh);
-			free(fh);
-			return status;
-		}
-	}
-	miniWriteBlock(file_block, BLOCK_SIZE, fh);
+	if(mode[0] == 'w') {
+        if (status == ERR_SUCCESS) {
+            fh->access_time = fh->modified_time = time(NULL);
+        }
+        // wæ¨¡å¼è‹¥æ–‡ä»¶ä¸å­˜åœ¨åˆ™åˆ›å»º
+        if (status == ERR_NOT_FOUND) {
+            status = NewEmptyItem(&path[last_slash_pos + 1], size, dh, dir_block, fh, &file_block);
+            if (status != ERR_SUCCESS) {
+                DbgPrint(status);
+                free(dh);
+                free(fh);
+                return status;
+            }
+        } else    // å…¶ä»–é”™è¯¯è¿”å›é”™è¯¯çŠ¶æ€
+        {
+            DbgPrint(status);
+            free(dh);
+            free(fh);
+            return status;
+        }
+    }
+    miniWriteBlock(file_block, BLOCK_SIZE, fh);
 
-	// ¹¹ÔìÎÄ¼şÃèÊö·û
-	FILE_DESCRIPTOR *fd = (FILE_DESCRIPTOR*)calloc(1, sizeof(FILE_DESCRIPTOR));
-	fd->dir_block = dir_block;
-	fd->dir = dh;
-	fd->self_block = file_block;
-	fd->self = fh;
-	fd->offset= 0;
-	fd->table_buffer = calloc(1,BLOCK_SIZE);
-	*p_fd = fd;
+    // æ„é€ æ–‡ä»¶æè¿°ç¬¦
+    FILE_DESCRIPTOR *fd = (FILE_DESCRIPTOR *) calloc(1, sizeof(FILE_DESCRIPTOR));
+    fd->dir_block = dir_block;
+    fd->dir = dh;
+    fd->self_block = file_block;
+    fd->self = fh;
+    fd->offset = 0;
+    fd->table_buffer = calloc(1, BLOCK_SIZE);
+    *p_fd = fd;
 
-	return status;
+    return status;
 }
+
 /*
-* ²ÎÊı£ºÔÚdhÄ¿Â¼ÏÂĞÂ½¨nameÏî£¬ÀàĞÍÓÉflag¾ö¶¨
-*      size£ºÎÄ¼şÊı¾İ´óĞ¡(µ¥Î»£º×Ö½Ú)
+* å‚æ•°ï¼šåœ¨dhç›®å½•ä¸‹æ–°å»ºnameé¡¹ï¼Œç±»å‹ç”±flagå†³å®š
+*      sizeï¼šæ–‡ä»¶æ•°æ®å¤§å°(å•ä½ï¼šå­—èŠ‚)
 *
 */
-ERROR_CODE NewEmptyItem(char *name, __int64 size, DIRECTORY_HEADER *dh, int dir_block, HEADER *hh, int *item_block)
-{
-	int how_many_blocks = 0;
-	int data_block = (int)ceil((double)size / BLOCK_SIZE);
-	int table_number = 0;
+ERROR_CODE NewEmptyItem(char *name, long long size, DIRECTORY_HEADER *dh, int dir_block, HEADER *hh, int *item_block) {
+    int how_many_blocks = 0;
+    int data_block = (int) ceil((double) size / BLOCK_SIZE);
+    int table_number = 0;
 
-	// Ä¿Â¼
-	if(size == 0)
-	{
-		// ¿ÕÄ¿Â¼±£Ö¤Ò»¸öÄ¿Â¼·ÖÅä±íµÄ´æÔÚ
-		table_number = 1;
-		// Ò»¸öÄ¿Â¼Í· + Ò»¸ö·ÖÅä±í
-		how_many_blocks = 2;
-	}
-	else
-	{
-	// ÎÄ¼ş
-		// Ò»¸öÎÄ¼ş·ÖÅä±íÄÜ´æ1023¸ö¿éÈë¿Ú¡£
-		table_number = (int)ceil((double)data_block / BLOCK_PER_FILE_TABLE);
-		// Ò»¸öÎÄ¼şÍ· + Êı¾İ¿é¸öÊı + ÎÄ¼ş·ÖÅä±í
-		how_many_blocks = 1 + data_block + table_number;
-	}
+    // ç›®å½•
+    if (size == 0) {
+        // ç©ºç›®å½•ä¿è¯ä¸€ä¸ªç›®å½•åˆ†é…è¡¨çš„å­˜åœ¨
+        table_number = 1;
+        // ä¸€ä¸ªç›®å½•å¤´ + ä¸€ä¸ªåˆ†é…è¡¨
+        how_many_blocks = 2;
+    } else {
+        // æ–‡ä»¶
+        // ä¸€ä¸ªæ–‡ä»¶åˆ†é…è¡¨èƒ½å­˜1023ä¸ªå—å…¥å£ã€‚
+        table_number = (int) ceil((double) data_block / BLOCK_PER_FILE_TABLE);
+        // ä¸€ä¸ªæ–‡ä»¶å¤´ + æ•°æ®å—ä¸ªæ•° + æ–‡ä»¶åˆ†é…è¡¨
+        how_many_blocks = 1 + data_block + table_number;
+    }
 
-	if(how_many_blocks > g_file_system_header->amount_of_free_block)
-		return ERR_NOT_ENOUGH_DISK_SPACE;
+    if (how_many_blocks > g_file_system_header->amount_of_free_block)
+        return ERR_NOT_ENOUGH_DISK_SPACE;
 
-	// ÉêÇëÎÄ¼şÍ·
-	int block_number = LookForFreeBlock(how_many_blocks);
-	if(block_number == -1)
-	{
-		DbgPrint(ERR_OTHER);
-		return ERR_OTHER;
-	}
-	*item_block = block_number;
-	fflush(g_storage);
-	memset(hh->name, 0, MAX_NAME);
-	memcpy(hh->name, name, strlen(name));
-	hh->create_time = hh->access_time = hh->modified_time = _time64(NULL);
-	hh->file_size = size;
-	hh->hidden = 0;
-	hh->is_file = (size == 0) ? IS_DIR : IS_FILE;
-	hh->access = MAKE_ACCESS(1, 0, ((size == 0) ? 1 : 0));	// Ä¬ÈÏÈ¨ÏŞ£ºÎÄ¼şr--£¬ Ä¿Â¼r-x
-	hh->allocate_table_number = table_number;
+    // ç”³è¯·æ–‡ä»¶å¤´
+    int block_number = LookForFreeBlock(how_many_blocks);
+    if (block_number == -1) {
+        DbgPrint(ERR_OTHER);
+        return ERR_OTHER;
+    }
+    *item_block = block_number;
+    fflush(g_storage);
+    memset(hh->name, 0, MAX_NAME);
+    memcpy(hh->name, name, strlen(name));
+    hh->create_time = hh->access_time = hh->modified_time = time(NULL);
+    hh->file_size = size;
+    hh->hidden = 0;
+    hh->is_file = (size == 0) ? IS_DIR : IS_FILE;
+    hh->access = MAKE_ACCESS(1, 0, ((size == 0) ? 1 : 0));    // é»˜è®¤æƒé™ï¼šæ–‡ä»¶r--ï¼Œ ç›®å½•r-x
+    hh->allocate_table_number = table_number;
 
-	// ÉêÇëÎÄ¼ş·ÖÅä±í
-	for(int i_table = 0; i_table < table_number; i_table++)
-	{
-		int table_block = LookForFreeBlock(how_many_blocks);
-		if(table_block == -1)
-		{
-			DbgPrint(ERR_OTHER);
-			return ERR_OTHER;
-		}
-		hh->table_block_number[i_table] = table_block;
+    // ç”³è¯·æ–‡ä»¶åˆ†é…è¡¨
+    for (int i_table = 0; i_table < table_number; i_table++) {
+        int table_block = LookForFreeBlock(how_many_blocks);
+        if (table_block == -1) {
+            DbgPrint(ERR_OTHER);
+            return ERR_OTHER;
+        }
+        hh->table_block_number[i_table] = table_block;
 
-		// ÉêÇëÊı¾İ¿é
-		char buf[BLOCK_SIZE];
-		memset(buf, 0, BLOCK_SIZE);
-		register FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE*)buf;
-		for(int i_data = 0; i_data < BLOCK_PER_FILE_TABLE && data_block > 0; i_data++, data_block--)
-		{
-			int data = LookForFreeBlock(how_many_blocks);
-			if(data == -1)
-			{
-				DbgPrint(ERR_OTHER);
-				return ERR_OTHER;
+        // ç”³è¯·æ•°æ®å—
+        char buf[BLOCK_SIZE];
+        memset(buf, 0, BLOCK_SIZE);
+        register FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE *) buf;
+        for (int i_data = 0; i_data < BLOCK_PER_FILE_TABLE && data_block > 0; i_data++, data_block--) {
+            int data = LookForFreeBlock(how_many_blocks);
+            if (data == -1) {
+                DbgPrint(ERR_OTHER);
+                return ERR_OTHER;
 			}
 			fat->amount_of_block++;
 			fat->block_number[i_data] = data;
@@ -752,253 +691,229 @@ ERROR_CODE NewEmptyItem(char *name, __int64 size, DIRECTORY_HEADER *dh, int dir_
 }
 
 /*
-* ²ÎÊı£ºsize£º´ı·ÖÅäÎÄ¼ş´óĞ¡£¨µ¥Î»£º¿é£©
-* ·µ»Ø£ºÕÒµ½µÄ¿ÕÏĞ¿éºÅ¡£³ö´íÔò·µ»Ø-1
+* å‚æ•°ï¼šsizeï¼šå¾…åˆ†é…æ–‡ä»¶å¤§å°ï¼ˆå•ä½ï¼šå—ï¼‰
+* è¿”å›ï¼šæ‰¾åˆ°çš„ç©ºé—²å—å·ã€‚å‡ºé”™åˆ™è¿”å›-1
 *
 */
-int LookForFreeBlock(int size)
-{
-	SET *list = g_file_system_header->set;
-	int total_set = g_file_system_header->amount_of_set;
+int LookForFreeBlock(int size) {
+    SET *list = g_file_system_header->set;
+    int total_set = g_file_system_header->amount_of_set;
 
-	// Ñ°ÕÒ×îÊÊºÏµÄÈººÅ
-	int set_index;
-	for(set_index = 0; set_index < total_set; set_index++)
-	{
-		if(size <= list[set_index].max_size)
-		{
-			break;
-		}
-	}
+    // å¯»æ‰¾æœ€é€‚åˆçš„ç¾¤å·
+    int set_index;
+    for (set_index = 0; set_index < total_set; set_index++) {
+        if (size <= list[set_index].max_size) {
+            break;
+        }
+    }
 
-	int origin = set_index;
+    int origin = set_index;
 
-	// µ±Ç°ÈºÖĞÎ´ÕÒµ½¾ÍÌøµ½ÏÂÒ»¸ö
-	register SET *set;
-	register int addr;
-	int end_pos;
-	do
-	{
-		set = &list[set_index];
-		// ÈºÄÚÌîÂúÊ±Ö±½ÓÌø¹ıÕâ¸öÈº
-		if(set->free_block == 0)
-		{
-			goto fast_skip;
-		}
+    // å½“å‰ç¾¤ä¸­æœªæ‰¾åˆ°å°±è·³åˆ°ä¸‹ä¸€ä¸ª
+    register SET *set;
+    register int addr;
+    int end_pos;
+    do {
+        set = &list[set_index];
+        // ç¾¤å†…å¡«æ»¡æ—¶ç›´æ¥è·³è¿‡è¿™ä¸ªç¾¤
+        if (set->free_block == 0) {
+            goto fast_skip;
+        }
 
-		// ±éÀúÈºÖĞËùÓĞ×Ö½Ú
-		end_pos = set->last_search - 1;
-		if(end_pos < set->begin)
-			end_pos = set->end;
+        // éå†ç¾¤ä¸­æ‰€æœ‰å­—èŠ‚
+        end_pos = set->last_search - 1;
+        if (end_pos < set->begin)
+            end_pos = set->end;
 
-		for(addr = set->last_search;
-			addr != end_pos;
-			addr = ((addr + 1 <= set->end) ? (addr + 1) : (set->begin))
-			)
-		{
-			// ±éÀúËùÓĞÎ»
-			for(int bit = 0; bit < 8; bit++)
-			{
-				if(!IsBitSet(&g_bitmap[addr], bit))
-				{
-					set->last_search = addr;
-					int rtn = addr * 8 + bit;
-					if(!((0 <= addr) && (addr < g_file_system_header->bitmap_size * BLOCK_SIZE)))
-					{
-						printf("Block 0x%08x out of range!\n", rtn);
-						return -1;
-					}
-					assert(IsBitSet(g_bitmap, rtn) == false);
-					UpdateBitmap(rtn, 1);
-					return rtn;
-				}
-			}
-		}
+        for (addr = set->last_search;
+             addr != end_pos;
+             addr = ((addr + 1 <= set->end) ? (addr + 1) : (set->begin))
+                ) {
+            // éå†æ‰€æœ‰ä½
+            for (int bit = 0; bit < 8; bit++) {
+                if (!IsBitSet(&g_bitmap[addr], bit)) {
+                    set->last_search = addr;
+                    int rtn = addr * 8 + bit;
+                    if (!((0 <= addr) && (addr < g_file_system_header->bitmap_size * BLOCK_SIZE))) {
+                        printf("Block 0x%08x out of range!\n", rtn);
+                        return -1;
+                    }
+                    assert(IsBitSet(g_bitmap, rtn) == false);
+                    UpdateBitmap(rtn, 1);
+                    return rtn;
+                }
+            }
+        }
 
-		// ÈºÄÚ¿Õ¼äÌîÂúÊ±Ö±½ÓÌøµ½ÕâÀï
-		fast_skip:
-		set_index++;
-		// Ìø¹ı0ºÅÈºÈç¹ûÊÇÎÄ¼ş
-		if(size != 2)
-			(set_index == total_set) ? (set_index = 1) : (0);
-		else
-			set_index %= total_set;
-	}while(origin != set_index);
+        // ç¾¤å†…ç©ºé—´å¡«æ»¡æ—¶ç›´æ¥è·³åˆ°è¿™é‡Œ
+        fast_skip:
+        set_index++;
+        // è·³è¿‡0å·ç¾¤å¦‚æœæ˜¯æ–‡ä»¶
+        if (size != 2)
+            (set_index == total_set) ? (set_index = 1) : (0);
+        else
+            set_index %= total_set;
+    }while(origin != set_index);
 	return -1;
 }
 
-// ÔÚÎÄ¼şfdÖĞ£¬´Ófd->offset´¦¿ªÊ¼¶ÁÈ¡bufferÖĞµÄsize¸ö×Ö½Ú£¬·µ»Ø¶ÁÁËsize_read¸ö
-ERROR_CODE miniReadFile(FILE_DESCRIPTOR *fd, __int64 size, int buffer_size, void *buffer, __int64 *size_read)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	char *buf = (char*)buffer;
-	register int *table_block_number = fd->self->table_block_number;
+// åœ¨æ–‡ä»¶fdä¸­ï¼Œä»fd->offsetå¤„å¼€å§‹è¯»å–bufferä¸­çš„sizeä¸ªå­—èŠ‚ï¼Œè¿”å›è¯»äº†size_readä¸ª
+ERROR_CODE miniReadFile(FILE_DESCRIPTOR *fd, long long size, int buffer_size, void *buffer, long long *size_read) {
+    ERROR_CODE status = ERR_SUCCESS;
+    char *buf = (char *) buffer;
+    register int *table_block_number = fd->self->table_block_number;
 
-	// ¼ì²é»º³åÇø³¤¶È
-	if(size > buffer_size)
-	{
-		*size_read = 0;
-		return ERR_BUFFER_OVERFLOW;
-	}
+    // æ£€æŸ¥ç¼“å†²åŒºé•¿åº¦
+    if (size > buffer_size) {
+        *size_read = 0;
+        return ERR_BUFFER_OVERFLOW;
+    }
 
-	// Èç¹ûÊÔÍ¼¶ÁÈ¡µÄ³¤¶È³¬³öÎÄ¼ş³¤¶È£¬Ôò¶ÁÈ¡µ½ÎÄ¼şÎ²
-	if(fd->offset + size > fd->self->file_size)
-		size = fd->self->file_size - fd->offset;
+    // å¦‚æœè¯•å›¾è¯»å–çš„é•¿åº¦è¶…å‡ºæ–‡ä»¶é•¿åº¦ï¼Œåˆ™è¯»å–åˆ°æ–‡ä»¶å°¾
+    if (fd->offset + size > fd->self->file_size)
+        size = fd->self->file_size - fd->offset;
 
-	int start_block, end_block;
-	start_block = fd->offset / BLOCK_SIZE;
-	end_block = (fd->offset + size) / BLOCK_SIZE;
+    int start_block, end_block;
+    start_block = fd->offset / BLOCK_SIZE;
+    end_block = (fd->offset + size) / BLOCK_SIZE;
 
-	// ÏÈ´¦ÀíµÚÒ»¿é
-	miniReadBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
-	int first_size = fd->offset % BLOCK_SIZE;
-	char *start_addr = (char*)fd->table_buffer + first_size;
-	if(start_block == end_block)
-	{
-		// Êı¾İÔÚÒ»¸ö¿éÖ®ÄÚ
-		memcpy(buf, start_addr, size);
-		*size_read = size;
-		fd->offset += size;
-		return ERR_SUCCESS;
-	}
-	else
-	{
-		// Êı¾İ³¤¶È³¬¹ıÒ»¸ö¿é
-		memcpy(buf, start_addr, BLOCK_SIZE - first_size);
-		buf += first_size;
-	}
+    // å…ˆå¤„ç†ç¬¬ä¸€å—
+    miniReadBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
+    int first_size = fd->offset % BLOCK_SIZE;
+    char *start_addr = (char *) fd->table_buffer + first_size;
+    if (start_block == end_block) {
+        // æ•°æ®åœ¨ä¸€ä¸ªå—ä¹‹å†…
+        memcpy(buf, start_addr, size);
+        *size_read = size;
+        fd->offset += size;
+        return ERR_SUCCESS;
+    } else {
+        // æ•°æ®é•¿åº¦è¶…è¿‡ä¸€ä¸ªå—
+        memcpy(buf, start_addr, BLOCK_SIZE - first_size);
+        buf += first_size;
+    }
 
-	// ´¦Àí³ıµÚÒ»¿éºÍ×îºóÒ»¿éÖ®¼äµÄÊı¾İ
-	for(int i = start_block + 1; i <= end_block - 1; i++)
-	{
-		miniReadBlock(LogicalToPhysical(fd->self, i), BLOCK_SIZE, buf);
-		buf += BLOCK_SIZE;
-	}
+    // å¤„ç†é™¤ç¬¬ä¸€å—å’Œæœ€åä¸€å—ä¹‹é—´çš„æ•°æ®
+    for (int i = start_block + 1; i <= end_block - 1; i++) {
+        miniReadBlock(LogicalToPhysical(fd->self, i), BLOCK_SIZE, buf);
+        buf += BLOCK_SIZE;
+    }
 
-	// ´¦Àí×îºóÒ»¿éÊı¾İ
-	int end_size = (fd->offset + size) % BLOCK_SIZE;
-	miniReadBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
-	memcpy(buf, fd->table_buffer, end_size);
+    // å¤„ç†æœ€åä¸€å—æ•°æ®
+    int end_size = (fd->offset + size) % BLOCK_SIZE;
+    miniReadBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
+    memcpy(buf, fd->table_buffer, end_size);
 
-	fd->offset += size;
-	*size_read = size;
-	return ERR_SUCCESS;
+    fd->offset += size;
+    *size_read = size;
+    return ERR_SUCCESS;
 }
 
-// ÔÚÎÄ¼şfdÖĞ£¬´Ófd->offset´¦¿ªÊ¼Ğ´ÈëbufferÖĞµÄsize¸ö×Ö½Ú£¬·µ»ØĞ´ÁËsize_write¸ö
-ERROR_CODE miniWriteFile(FILE_DESCRIPTOR *fd, __int64 size, int buffer_size, void *buffer, __int64 *size_write)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	char *buf = (char*)buffer;
-	register int *table_block_number = fd->self->table_block_number;
+// åœ¨æ–‡ä»¶fdä¸­ï¼Œä»fd->offsetå¤„å¼€å§‹å†™å…¥bufferä¸­çš„sizeä¸ªå­—èŠ‚ï¼Œè¿”å›å†™äº†size_writeä¸ª
+ERROR_CODE miniWriteFile(FILE_DESCRIPTOR *fd, long long size, int buffer_size, void *buffer, long long *size_write) {
+    ERROR_CODE status = ERR_SUCCESS;
+    char *buf = (char *) buffer;
+    register int *table_block_number = fd->self->table_block_number;
 
-	// ¼ì²é»º³åÇø³¤¶È
-	if(size > buffer_size)
-	{
-		*size_write = size;
-		return ERR_BUFFER_OVERFLOW;
-	}
+    // æ£€æŸ¥ç¼“å†²åŒºé•¿åº¦
+    if (size > buffer_size) {
+        *size_write = size;
+        return ERR_BUFFER_OVERFLOW;
+    }
 
-	// Âß¼­¿éºÅ
-	int start_block, end_block;
-	start_block = fd->offset / BLOCK_SIZE;
-	end_block = (fd->offset + size - 1) / BLOCK_SIZE;
+    // é€»è¾‘å—å·
+    int start_block, end_block;
+    start_block = fd->offset / BLOCK_SIZE;
+    end_block = (fd->offset + size - 1) / BLOCK_SIZE;
 
-	// ÏÈ´¦ÀíµÚÒ»¿é
-	int first_size = fd->offset % BLOCK_SIZE;
-	char *start_addr = (char*)fd->table_buffer + first_size;
-	// Ö»ÓĞµ±µÚÒ»¿é²»ÊÇ´ÓÍ·¿ªÊ¼Ğ´µÄÊ±ºòĞèÒª¶ÁÈëÔ­À´µÄÊı¾İ·ÀÖ¹¸²¸Ç²»ĞèÒªĞ´µÄ²¿·Ö
-	if(first_size != 0)
-		miniReadBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
-	if(start_block == end_block)
-	{
-		// Êı¾İÔÚÒ»¿éÖ®ÄÚ
-		memcpy(start_addr, buf, size);
-		miniWriteBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
-		*size_write = size;
-		fd->offset += size;
-		return ERR_SUCCESS;
-	}
-	else
-	{
-		// Êı¾İ³¤¶È³¬¹ıÒ»¿é
-		memcpy(start_addr, buf, BLOCK_SIZE - first_size);
-		miniWriteBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
-		buf += first_size;
-	}
+    // å…ˆå¤„ç†ç¬¬ä¸€å—
+    int first_size = fd->offset % BLOCK_SIZE;
+    char *start_addr = (char *) fd->table_buffer + first_size;
+    // åªæœ‰å½“ç¬¬ä¸€å—ä¸æ˜¯ä»å¤´å¼€å§‹å†™çš„æ—¶å€™éœ€è¦è¯»å…¥åŸæ¥çš„æ•°æ®é˜²æ­¢è¦†ç›–ä¸éœ€è¦å†™çš„éƒ¨åˆ†
+    if (first_size != 0)
+        miniReadBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
+    if (start_block == end_block) {
+        // æ•°æ®åœ¨ä¸€å—ä¹‹å†…
+        memcpy(start_addr, buf, size);
+        miniWriteBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
+        *size_write = size;
+        fd->offset += size;
+        return ERR_SUCCESS;
+    } else {
+        // æ•°æ®é•¿åº¦è¶…è¿‡ä¸€å—
+        memcpy(start_addr, buf, BLOCK_SIZE - first_size);
+        miniWriteBlock(LogicalToPhysical(fd->self, start_block), BLOCK_SIZE, fd->table_buffer);
+        buf += first_size;
+    }
 
-	// ´¦Àí³ıµÚÒ»¿éºÍ×îºóÒ»¿éÖ®¼äµÄÊı¾İ
-	for(int i = start_block + 1; i <= end_block - 1; i++)
-	{
-		miniWriteBlock(LogicalToPhysical(fd->self, i), BLOCK_SIZE, buf);
-		buf += BLOCK_SIZE;
-	}
+    // å¤„ç†é™¤ç¬¬ä¸€å—å’Œæœ€åä¸€å—ä¹‹é—´çš„æ•°æ®
+    for (int i = start_block + 1; i <= end_block - 1; i++) {
+        miniWriteBlock(LogicalToPhysical(fd->self, i), BLOCK_SIZE, buf);
+        buf += BLOCK_SIZE;
+    }
 
-	// ´¦Àí×îºóÒ»¿éÊı¾İ
-	int end_size = (fd->offset + size - 1) % BLOCK_SIZE;
-	// ×îºóÒ»¸ö×Ö½Ú²»ÔÚ¿éÄ©Î²Ê±²Å¶ÁÈëÔ­Êı¾İ·ÀÖ¹¸²¸Ç²»ĞèÒªĞ´µÄ²¿·Ö
-	if(end_size != BLOCK_SIZE - 1)
-		miniReadBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
-	memcpy(fd->table_buffer, buf, end_size);
-	miniWriteBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
+    // å¤„ç†æœ€åä¸€å—æ•°æ®
+    int end_size = (fd->offset + size - 1) % BLOCK_SIZE;
+    // æœ€åä¸€ä¸ªå­—èŠ‚ä¸åœ¨å—æœ«å°¾æ—¶æ‰è¯»å…¥åŸæ•°æ®é˜²æ­¢è¦†ç›–ä¸éœ€è¦å†™çš„éƒ¨åˆ†
+    if (end_size != BLOCK_SIZE - 1)
+        miniReadBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
+    memcpy(fd->table_buffer, buf, end_size);
+    miniWriteBlock(LogicalToPhysical(fd->self, end_block), BLOCK_SIZE, fd->table_buffer);
 
-	fd->offset += size;
-	*size_write = size;
-	return ERR_SUCCESS;
+    fd->offset += size;
+    *size_write = size;
+    return ERR_SUCCESS;
 }
 
-// ½«ÎÄ¼ş/Ä¿Â¼hhµÄÎÄ¼şÍ·µÄ¿éºÅ²åÈëµ½dhµÄÄ¿Â¼·ÖÅä±íµÄ×îºó
+// å°†æ–‡ä»¶/ç›®å½•hhçš„æ–‡ä»¶å¤´çš„å—å·æ’å…¥åˆ°dhçš„ç›®å½•åˆ†é…è¡¨çš„æœ€å
 ERROR_CODE InsertToDirectory(DIRECTORY_HEADER *dh, int dir_block, HEADER *hh, int header_block)
 {
 	unsigned char buf[BLOCK_SIZE];
 	ERROR_CODE status = ERR_SUCCESS;
-	int target_block = dh->table_block_number[dh->allocate_table_number - 1];
+    int target_block = dh->table_block_number[dh->allocate_table_number - 1];
 
-	status = miniReadBlock(target_block, BLOCK_SIZE, buf);
-	if(status != ERR_SUCCESS)
-	{
-		DbgPrint(status);
-		return status;
-	}
+    status = miniReadBlock(target_block, BLOCK_SIZE, buf);
+    if (status != ERR_SUCCESS) {
+        DbgPrint(status);
+        return status;
+    }
 
-	DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE*)buf;
-	// ×îºóÒ»¸öÄ¿Â¼·ÖÅä±íÂúÁË
-	if(dat->amount_of_entry == ENTRY_PER_TABLE)
-	{
-		target_block = LookForFreeBlock(2);
-		dh->table_block_number[dh->allocate_table_number] = target_block;
-		dh->allocate_table_number++;
-		fflush(g_storage);
+    DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE *) buf;
+    // æœ€åä¸€ä¸ªç›®å½•åˆ†é…è¡¨æ»¡äº†
+    if (dat->amount_of_entry == ENTRY_PER_TABLE) {
+        target_block = LookForFreeBlock(2);
+        dh->table_block_number[dh->allocate_table_number] = target_block;
+        dh->allocate_table_number++;
+        fflush(g_storage);
 
-		// ½«¶ÁÈëµÄdatÇå¿Õ
-		memset(dat, 0, BLOCK_SIZE);
-		dat->amount_of_entry = 0;
-	}
+        // å°†è¯»å…¥çš„datæ¸…ç©º
+        memset(dat, 0, BLOCK_SIZE);
+        dat->amount_of_entry = 0;
+    }
 
 
-	DIRECTORY_ENTRY *entry = &dat->entry[dat->amount_of_entry];
-	entry->block_number = header_block;
-	entry->is_file = hh->is_file;
-	strcpy(entry->name, hh->name);
+    DIRECTORY_ENTRY *entry = &dat->entry[dat->amount_of_entry];
+    entry->block_number = header_block;
+    entry->is_file = hh->is_file;
+    strcpy(entry->name, hh->name);
 
-	dat->amount_of_entry++;
+    dat->amount_of_entry++;
 
-	// Ğ´ÈëÄ¿Â¼·ÖÅä±í
-	miniWriteBlock(target_block, BLOCK_SIZE, dat);
-	// Ğ´ÈëËùÔÚÄ¿Â¼ÎÄ¼şÍ·
-	miniWriteBlock(dir_block, BLOCK_SIZE, dh);
+    // å†™å…¥ç›®å½•åˆ†é…è¡¨
+    miniWriteBlock(target_block, BLOCK_SIZE, dat);
+    // å†™å…¥æ‰€åœ¨ç›®å½•æ–‡ä»¶å¤´
+    miniWriteBlock(dir_block, BLOCK_SIZE, dh);
 
-	return ERR_SUCCESS;
+    return ERR_SUCCESS;
 }
 
-// ½«fdµÄÆ«ÒÆÁ¿ÒÆµ½offset´¦
-ERROR_CODE miniSeekFile(FILE_DESCRIPTOR *fd, __int64 offset)
-{
-	if(offset > fd->self->file_size)
-		return ERR_OUT_OF_RANGE;
+// å°†fdçš„åç§»é‡ç§»åˆ°offsetå¤„
+ERROR_CODE miniSeekFile(FILE_DESCRIPTOR *fd, long long offset) {
+    if (offset > fd->self->file_size)
+        return ERR_OUT_OF_RANGE;
 
-	fd->offset = offset;
-	return ERR_SUCCESS;
+    fd->offset = offset;
+    return ERR_SUCCESS;
 }
 
 ERROR_CODE miniCloseFile(FILE_DESCRIPTOR *fd)
@@ -1021,85 +936,78 @@ ERROR_CODE miniExitSystem(void)
 	return ERR_SUCCESS;
 }
 
-// É¾³ıÎÄ¼şfd
+// åˆ é™¤æ–‡ä»¶fd
 ERROR_CODE miniDeleteFile(FILE_DESCRIPTOR *fd)
 {
 	return DeleteItem(fd);
 }
 
-// ÔÚ¸¸Ä¿Â¼·ÖÅä±íÖĞÕÒµ½´ıÉ¾³ı¶ÔÏó£¬É¾³ı
-ERROR_CODE DeleteItem(DESCRIPTOR *d)
-{
-	ERROR_CODE status = ERR_SUCCESS;
-	char buf[BLOCK_SIZE];
-	register DIRECTORY_HEADER *dh = d->dir;
-	char *name = d->self->name;
-	register DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE*)d->table_buffer;
-	DIRECTORY_ALLOCATE_TABLE *last_table = (DIRECTORY_ALLOCATE_TABLE*)buf;
-	DIRECTORY_ENTRY de;
+// åœ¨çˆ¶ç›®å½•åˆ†é…è¡¨ä¸­æ‰¾åˆ°å¾…åˆ é™¤å¯¹è±¡ï¼Œåˆ é™¤
+ERROR_CODE DeleteItem(DESCRIPTOR *d) {
+    ERROR_CODE status = ERR_SUCCESS;
+    char buf[BLOCK_SIZE];
+    register DIRECTORY_HEADER *dh = d->dir;
+    char *name = d->self->name;
+    register DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE *) d->table_buffer;
+    DIRECTORY_ALLOCATE_TABLE *last_table = (DIRECTORY_ALLOCATE_TABLE *) buf;
+    DIRECTORY_ENTRY de;
 
-	// ¶ÁÈ¡×îºóÒ»¸ö·ÖÅä±í
-	miniReadBlock(dh->table_block_number[dh->allocate_table_number - 1], BLOCK_SIZE, dat);
-	// ±£´æ×îºóÒ»¸ö·ÖÅä±í
-	memcpy(last_table, dat, BLOCK_SIZE);
-	// ±£´æ×îºóÒ»¸öÄ¿Â¼Ïî
-	memcpy(&de, &dat->entry[dat->amount_of_entry - 1], sizeof(DIRECTORY_ENTRY));
+    // è¯»å–æœ€åä¸€ä¸ªåˆ†é…è¡¨
+    miniReadBlock(dh->table_block_number[dh->allocate_table_number - 1], BLOCK_SIZE, dat);
+    // ä¿å­˜æœ€åä¸€ä¸ªåˆ†é…è¡¨
+    memcpy(last_table, dat, BLOCK_SIZE);
+    // ä¿å­˜æœ€åä¸€ä¸ªç›®å½•é¡¹
+    memcpy(&de, &dat->entry[dat->amount_of_entry - 1], sizeof(DIRECTORY_ENTRY));
 
-	bool success = false;
-	// ±éÀúËùÓĞÄ¿Â¼·ÖÅä±í
-	for(int i_table = 0; i_table < dh->allocate_table_number; i_table++)
-	{
-		miniReadBlock(dh->table_block_number[i_table], BLOCK_SIZE, dat);
-		DIRECTORY_ENTRY *entry = dat->entry;
-		// ±éÀúÕû¸öÄ¿Â¼·ÖÅä±íÖĞµÄËùÓĞÄ¿Â¼Ïî
-		for(int i_entry = 0; i_entry < dat->amount_of_entry; i_entry++)
-		{
-			// ÕÒµ½Ä¿Â¼Ïî
-			if(strcmp(name, entry[i_entry].name) == 0)
-			{
-				status = FreeItemDiskSpace(entry[i_entry].block_number);
-				// ¶ÔÓÚÄ¿Â¼¿ÉÄÜ·Ç¿Õ
-				if(status != ERR_SUCCESS)
-				{
-					return status;
-				}
-				// ½«×îºóÒ»¸öÄ¿Â¼Ïî¸²¸Çµ½ÕÒµ½µÄÄ¿Â¼Ïî
-				memcpy(&entry[i_entry], &de, sizeof(DIRECTORY_ENTRY));
-				miniWriteBlock(dh->table_block_number[i_table], BLOCK_SIZE, dat);
-				// Èç¹ûÔÚ×îºóÒ»¸öÄ¿Â¼±íÖĞÕÒµ½Ä¿Â¼Ïî£¬Ôò¸üĞÂ»º´æÖĞµÄ×îºóÒ»¸öÄ¿Â¼±ílast_table
-				if(i_table == dh->allocate_table_number - 1)
-					memcpy(last_table, dat, BLOCK_SIZE);
-				// ×îºóÒ»¸ö·ÖÅä±í×ÜÄ¿Â¼ÏîÊı¼õ1
-				last_table->amount_of_entry--;
-				success = true;
+    bool success = false;
+    // éå†æ‰€æœ‰ç›®å½•åˆ†é…è¡¨
+    for (int i_table = 0; i_table < dh->allocate_table_number; i_table++) {
+        miniReadBlock(dh->table_block_number[i_table], BLOCK_SIZE, dat);
+        DIRECTORY_ENTRY *entry = dat->entry;
+        // éå†æ•´ä¸ªç›®å½•åˆ†é…è¡¨ä¸­çš„æ‰€æœ‰ç›®å½•é¡¹
+        for (int i_entry = 0; i_entry < dat->amount_of_entry; i_entry++) {
+            // æ‰¾åˆ°ç›®å½•é¡¹
+            if (strcmp(name, entry[i_entry].name) == 0) {
+                status = FreeItemDiskSpace(entry[i_entry].block_number);
+                // å¯¹äºç›®å½•å¯èƒ½éç©º
+                if (status != ERR_SUCCESS) {
+                    return status;
+                }
+                // å°†æœ€åä¸€ä¸ªç›®å½•é¡¹è¦†ç›–åˆ°æ‰¾åˆ°çš„ç›®å½•é¡¹
+                memcpy(&entry[i_entry], &de, sizeof(DIRECTORY_ENTRY));
+                miniWriteBlock(dh->table_block_number[i_table], BLOCK_SIZE, dat);
+                // å¦‚æœåœ¨æœ€åä¸€ä¸ªç›®å½•è¡¨ä¸­æ‰¾åˆ°ç›®å½•é¡¹ï¼Œåˆ™æ›´æ–°ç¼“å­˜ä¸­çš„æœ€åä¸€ä¸ªç›®å½•è¡¨last_table
+                if (i_table == dh->allocate_table_number - 1)
+                    memcpy(last_table, dat, BLOCK_SIZE);
+                // æœ€åä¸€ä¸ªåˆ†é…è¡¨æ€»ç›®å½•é¡¹æ•°å‡1
+                last_table->amount_of_entry--;
+                success = true;
 
-				goto out;
-			}
-		}
-	}
+                goto out;
+            }
+        }
+    }
 
-out:
-	// Ã»ÕÒµ½
-	if(!success)
-		return ERR_NOT_FOUND;
+    out:
+    // æ²¡æ‰¾åˆ°
+    if (!success)
+        return ERR_NOT_FOUND;
 
-	// ×îºóÒ»ÕÅ·ÖÅä±íÎª¿ÕÔòÊÍ·Å
-	if(last_table->amount_of_entry == 0)
-	{
-		// ÖÁÉÙ±£Ö¤Ò»ÕÅÄ¿Â¼·ÖÅä±í
-		if(dh->allocate_table_number >= 2)
-		{
-			dh->allocate_table_number--;
-			miniWriteBlock(d->self_block, BLOCK_SIZE, dh);
-		}
-	}
-	miniWriteBlock(dh->table_block_number[dh->allocate_table_number - 1], BLOCK_SIZE, last_table);
+    // æœ€åä¸€å¼ åˆ†é…è¡¨ä¸ºç©ºåˆ™é‡Šæ”¾
+    if (last_table->amount_of_entry == 0) {
+        // è‡³å°‘ä¿è¯ä¸€å¼ ç›®å½•åˆ†é…è¡¨
+        if (dh->allocate_table_number >= 2) {
+            dh->allocate_table_number--;
+            miniWriteBlock(d->self_block, BLOCK_SIZE, dh);
+        }
+    }
+    miniWriteBlock(dh->table_block_number[dh->allocate_table_number - 1], BLOCK_SIZE, last_table);
 
 	return ERR_SUCCESS;
 }
 
-/* ÊÍ·ÅÎÄ¼ş/Ä¿Â¼ËùÕ¼ÓÃµÄËùÓĞ´ÅÅÌ¿Õ¼ä
-*  ·µ»ØÖµ£ºERR_DIRECTORY_NOT_EMPTY»òERR_SUCCESS
+/* é‡Šæ”¾æ–‡ä»¶/ç›®å½•æ‰€å ç”¨çš„æ‰€æœ‰ç£ç›˜ç©ºé—´
+*  è¿”å›å€¼ï¼šERR_DIRECTORY_NOT_EMPTYæˆ–ERR_SUCCESS
 */
 ERROR_CODE FreeItemDiskSpace(int item_block)
 {
@@ -1122,42 +1030,37 @@ ERROR_CODE FreeItemDiskSpace(int item_block)
 		UpdateBitmap(h->table_block_number[0], 0);
 		UpdateBitmap(item_block, 0);
 	}
-	else
-	{
-		register FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE*)table_buf;
-		// ±éÀúËùÓĞ·ÖÅä±í
-		for(int i_table = 0; i_table < h->allocate_table_number; i_table++)
-		{
-			miniReadBlock(h->table_block_number[i_table], BLOCK_SIZE, fat);
-			// ±éÀúËùÓĞÊı¾İ¿é
-			for(int i_data = 0; i_data < fat->amount_of_block; i_data++)
-			{
-				UpdateBitmap(fat->block_number[i_data], 0);
-			}
-			UpdateBitmap(h->table_block_number[i_table], 0);
-		}
+	else {
+        register FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE *) table_buf;
+        // éå†æ‰€æœ‰åˆ†é…è¡¨
+        for (int i_table = 0; i_table < h->allocate_table_number; i_table++) {
+            miniReadBlock(h->table_block_number[i_table], BLOCK_SIZE, fat);
+            // éå†æ‰€æœ‰æ•°æ®å—
+            for (int i_data = 0; i_data < fat->amount_of_block; i_data++) {
+                UpdateBitmap(fat->block_number[i_data], 0);
+            }
+            UpdateBitmap(h->table_block_number[i_table], 0);
+        }
 	}
 	fflush(g_storage);
 	return ERR_SUCCESS;
 }
 
-// Âß¼­¿éºÅ×ª»»³ÉÎïÀí¿éºÅ(Ïß³Ì²»°²È«)
-inline int LogicalToPhysical(FILE_HEADER *fh, int logical_block)
-{
-	// »º´æ»úÖÆ£¬µ±¶ÁĞ´ÔÚÍ¬Ò»¸öÎÄ¼ş·ÖÅä±íÖĞÊ±Ö±½Ó´Ó»º´æ¶ÁÈ¡Êı¾İ¿éµØÖ·
-	// Ç°Ò»¸öÎÄ¼ş·ÖÅä±íÎïÀí¿éºÅ
-	static int last_physical_block = -1;
-	// Ç°Ò»¸öÎÄ¼ş·ÖÅä±í»º´æ
-	static char buf[BLOCK_SIZE];
+// é€»è¾‘å—å·è½¬æ¢æˆç‰©ç†å—å·(çº¿ç¨‹ä¸å®‰å…¨)
+inline int LogicalToPhysical(FILE_HEADER *fh, int logical_block) {
+    // ç¼“å­˜æœºåˆ¶ï¼Œå½“è¯»å†™åœ¨åŒä¸€ä¸ªæ–‡ä»¶åˆ†é…è¡¨ä¸­æ—¶ç›´æ¥ä»ç¼“å­˜è¯»å–æ•°æ®å—åœ°å€
+    // å‰ä¸€ä¸ªæ–‡ä»¶åˆ†é…è¡¨ç‰©ç†å—å·
+    static int last_physical_block = -1;
+    // å‰ä¸€ä¸ªæ–‡ä»¶åˆ†é…è¡¨ç¼“å­˜
+    static char buf[BLOCK_SIZE];
 
-	register int index = logical_block / BLOCK_PER_FILE_TABLE;
-	register int offset = logical_block % BLOCK_PER_FILE_TABLE;
-	FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE*)buf;
-	int physical_block = fh->table_block_number[index];
+    register int index = logical_block / BLOCK_PER_FILE_TABLE;
+    register int offset = logical_block % BLOCK_PER_FILE_TABLE;
+    FILE_ALLOCATE_TABLE *fat = (FILE_ALLOCATE_TABLE *) buf;
+    int physical_block = fh->table_block_number[index];
 
-	if(last_physical_block != physical_block)
-	{
-		miniReadBlock(physical_block, BLOCK_SIZE, fat);
+    if (last_physical_block != physical_block) {
+        miniReadBlock(physical_block, BLOCK_SIZE, fat);
 		last_physical_block = physical_block;
 	}
 	return fat->block_number[offset];
@@ -1167,123 +1070,113 @@ inline int LogicalToPhysical(FILE_HEADER *fh, int logical_block)
 ERROR_CODE miniCreateDirectory(char *path, char *mode, DIRECTORY_DESCRIPTOR **p_dd)
 {
 	ERROR_CODE status = ERR_SUCCESS;
-	if(path == NULL)
-		path = g_current_path;
+    if (path == NULL)
+        path = g_current_path;
 
-	status = PreProcessPath(path);
-	if(status != ERR_SUCCESS)
-	{
-		DbgPrint(status);
-		return status;
-	}
+    status = PreProcessPath(path);
+    if (status != ERR_SUCCESS) {
+        DbgPrint(status);
+        return status;
+    }
 
-	// Èç¹ûpathÊÇ¸ùÄ¿Â¼£¬ÔòÖ±½Ó¸´ÖÆÒ»·İ¸ùÄ¿Â¼ÃèÊö·û
-	if(strcmp(path, "/") == 0)
-	{
-		DIRECTORY_DESCRIPTOR *dd = (DIRECTORY_DESCRIPTOR*)calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
-		dd->dir = (DIRECTORY_HEADER*)calloc(1, BLOCK_SIZE);
-		memcpy(dd->dir, g_root->dir, BLOCK_SIZE);
-		dd->dir_block = g_root->dir_block;
-		dd->self = (DIRECTORY_HEADER*)calloc(1, BLOCK_SIZE);
-		memcpy(dd->self, g_root->self, BLOCK_SIZE);
-		dd->self_block = g_root->self_block;
-		dd->offset = 0;
-		dd->table_buffer = calloc(1, BLOCK_SIZE);
-		*p_dd = dd;
+    // å¦‚æœpathæ˜¯æ ¹ç›®å½•ï¼Œåˆ™ç›´æ¥å¤åˆ¶ä¸€ä»½æ ¹ç›®å½•æè¿°ç¬¦
+    if (strcmp(path, "/") == 0) {
+        DIRECTORY_DESCRIPTOR *dd = (DIRECTORY_DESCRIPTOR *) calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
+        dd->dir = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
+        memcpy(dd->dir, g_root->dir, BLOCK_SIZE);
+        dd->dir_block = g_root->dir_block;
+        dd->self = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
+        memcpy(dd->self, g_root->self, BLOCK_SIZE);
+        dd->self_block = g_root->self_block;
+        dd->offset = 0;
+        dd->table_buffer = calloc(1, BLOCK_SIZE);
+        *p_dd = dd;
 
-		return ERR_SUCCESS;
-	}
+        return ERR_SUCCESS;
+    }
 
 
-	DIRECTORY_HEADER *dh = (DIRECTORY_HEADER*)calloc(1,BLOCK_SIZE);
-	// Ä¿Â¼Í·µÄ¿éºÅ
-	int dir_block = 0;
-	status = GetParentDirectory(path, dh, &dir_block);
-	if(status != ERR_SUCCESS)
-	{
-		DbgPrint(status);
-		free(dh);
-		return status;
-	}
+    DIRECTORY_HEADER *dh = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
+    // ç›®å½•å¤´çš„å—å·
+    int dir_block = 0;
+    status = GetParentDirectory(path, dh, &dir_block);
+    if (status != ERR_SUCCESS) {
+        DbgPrint(status);
+        free(dh);
+        return status;
+    }
 
-	// ×îºóÒ»¸öĞ±¸ÜÎ»ÖÃ¡£ÎÄ¼şÃûÆğÊ¼ÔÚlast_slash_pos + 1´¦
-	int last_slash_pos = -1;
-	for(int i = strlen(path) - 1; i >= 0; i--)
-		if(path[i] == '/')
-		{
-			last_slash_pos = i;
-			break;
-		}
-	// ¼ì²éĞÂ½¨µÄÎÄ¼şÃû³¤¶È
-	int path_len = strlen(path);
-	if(path_len - last_slash_pos - 1 > MAX_NAME)
-		return ERR_INVALID_FILE_NAME;
+    // æœ€åä¸€ä¸ªæ–œæ ä½ç½®ã€‚æ–‡ä»¶åèµ·å§‹åœ¨last_slash_pos + 1å¤„
+    int last_slash_pos = -1;
+    for (int i = strlen(path) - 1; i >= 0; i--)
+        if (path[i] == '/') {
+            last_slash_pos = i;
+            break;
+        }
+    // æ£€æŸ¥æ–°å»ºçš„æ–‡ä»¶åé•¿åº¦
+    int path_len = strlen(path);
+    if (path_len - last_slash_pos - 1 > MAX_NAME)
+        return ERR_INVALID_FILE_NAME;
 
-	DIRECTORY_HEADER *child_dh = (DIRECTORY_HEADER*)calloc(1, BLOCK_SIZE);
-	int child_dir_block = 0;
-	status = GetChildDirectory(&path[last_slash_pos + 1], dh, child_dh, &child_dir_block);
-	if(mode[0] == 'r')
-	{
-		if(status != ERR_SUCCESS)
+    DIRECTORY_HEADER *child_dh = (DIRECTORY_HEADER *) calloc(1, BLOCK_SIZE);
+    int child_dir_block = 0;
+    status = GetChildDirectory(&path[last_slash_pos + 1], dh, child_dh, &child_dir_block);
+    if (mode[0] == 'r') {
+        if (status != ERR_SUCCESS)
 		{
 			DbgPrint(status);
 			free(dh);
 			free(child_dh);
 			return status;
 		}
-		else
-		{
-			child_dh->access_time = _time64(NULL);
-		}
+		else {
+            child_dh->access_time = time(NULL);
+        }
 	}
 
 	if(mode[0] == 'w')
 	{
-		if(status == ERR_SUCCESS)
-		{
-			child_dh->access_time = child_dh->modified_time = _time64(NULL);
-		}
-		else if(status == ERR_NOT_FOUND)	// wÄ£Ê½ÈôÎÄ¼ş²»´æÔÚÔò´´½¨
-		{
-			status = NewEmptyItem(&path[last_slash_pos + 1], 0, dh, dir_block, child_dh, &child_dir_block);
+        if (status == ERR_SUCCESS) {
+            child_dh->access_time = child_dh->modified_time = time(NULL);
+        } else if (status == ERR_NOT_FOUND)    // wæ¨¡å¼è‹¥æ–‡ä»¶ä¸å­˜åœ¨åˆ™åˆ›å»º
+        {
+            status = NewEmptyItem(&path[last_slash_pos + 1], 0, dh, dir_block, child_dh, &child_dir_block);
 
-			if(status != ERR_SUCCESS)
-			{
-				DbgPrint(status);
-				free(dh);
-				free(child_dh);
-				return status;
-			}
-		}
-		else	// ÆäËû´íÎó·µ»Ø´íÎó×´Ì¬
-		{
-			DbgPrint(status);
-			free(dh);
-			free(child_dh);
-			return status;
-		}
-	}
-	miniWriteBlock(child_dir_block, BLOCK_SIZE, child_dh);
-	// ¹¹ÔìÄ¿Â¼ÃèÊö·û
-	DIRECTORY_DESCRIPTOR *dd = (DIRECTORY_DESCRIPTOR*)calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
-	dd->dir_block = dir_block;
-	dd->dir = dh;
-	dd->self_block = child_dir_block;
-	dd->self = child_dh;
-	dd->offset = 0;
-	dd->table_buffer = calloc(1, BLOCK_SIZE);
-	*p_dd = dd;
+            if (status != ERR_SUCCESS) {
+                DbgPrint(status);
+                free(dh);
+                free(child_dh);
+                return status;
+            }
+        } else    // å…¶ä»–é”™è¯¯è¿”å›é”™è¯¯çŠ¶æ€
+        {
+            DbgPrint(status);
+            free(dh);
+            free(child_dh);
+            return status;
+        }
+    }
+    miniWriteBlock(child_dir_block, BLOCK_SIZE, child_dh);
+    // æ„é€ ç›®å½•æè¿°ç¬¦
+    DIRECTORY_DESCRIPTOR *dd = (DIRECTORY_DESCRIPTOR *) calloc(1, sizeof(DIRECTORY_DESCRIPTOR));
+    dd->dir_block = dir_block;
+    dd->dir = dh;
+    dd->self_block = child_dir_block;
+    dd->self = child_dh;
+    dd->offset = 0;
+    dd->table_buffer = calloc(1, BLOCK_SIZE);
+    *p_dd = dd;
 
-	return ERR_SUCCESS;
+    return ERR_SUCCESS;
 }
 
-// É¾³ıÄ¿Â¼dd
+// åˆ é™¤ç›®å½•dd
 ERROR_CODE miniDeleteDirectory(DIRECTORY_DESCRIPTOR *dd)
 {
 	return DeleteItem(dd);
 }
 
-// ¹Ø±ÕÎÄ¼ş/Ä¿Â¼
+// å…³é—­æ–‡ä»¶/ç›®å½•
 ERROR_CODE CloseItem(DESCRIPTOR *d)
 {
 	free(d->dir);
@@ -1299,34 +1192,31 @@ ERROR_CODE miniCloseDirectory(DIRECTORY_DESCRIPTOR *dd)
 	return CloseItem(dd);
 }
 
-/* Ã¿µ÷ÓÃÒ»´Î´ÓddÖĞ¶Á³öÒ»¸öÄ¿Â¼Ïîµ½buffer
-*  ËµÃ÷£ºÈôbufferÎªNULL£¬Ôòbuffer_size·µ»ØĞèÒªµÄ»º³åÇø³¤¶È£¨µ¥Î»£º×Ö½Ú£© 
-*       Èôbuffer²»ÎªNULL£¬ÊäÈëbuffer_sizeÎª»º³åÇø³¤¶È£¨µ¥Î»£º×Ö½Ú£©£¬Êä³öbuffer_sizeÎª¶Áµ½µÄddÄ¿Â¼ÏÂÄ¿Â¼Ïî×ÜÊı
+/* æ¯è°ƒç”¨ä¸€æ¬¡ä»ddä¸­è¯»å‡ºä¸€ä¸ªç›®å½•é¡¹åˆ°buffer
+*  è¯´æ˜ï¼šè‹¥bufferä¸ºNULLï¼Œåˆ™buffer_sizeè¿”å›éœ€è¦çš„ç¼“å†²åŒºé•¿åº¦ï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰ 
+*       è‹¥bufferä¸ä¸ºNULLï¼Œè¾“å…¥buffer_sizeä¸ºç¼“å†²åŒºé•¿åº¦ï¼ˆå•ä½ï¼šå­—èŠ‚ï¼‰ï¼Œè¾“å‡ºbuffer_sizeä¸ºè¯»åˆ°çš„ddç›®å½•ä¸‹ç›®å½•é¡¹æ€»æ•°
 */
-ERROR_CODE miniReadDirectory(DIRECTORY_DESCRIPTOR *dd, int *buffer_size, void *buffer)
-{
-	register DIRECTORY_HEADER *parent_dir = dd->dir;
-	register DIRECTORY_HEADER *dir = dd->self;
-	register int rtn_size = 0;
-	// real_sizeÈ¡ËùÓĞ·ÖÅä±í´óĞ¡
-	int real_size = dir->allocate_table_number * BLOCK_SIZE;
-	if(*buffer_size < real_size)
-	{
-		*buffer_size = real_size;
-		return ERR_BUFFER_OVERFLOW;
-	}
+ERROR_CODE miniReadDirectory(DIRECTORY_DESCRIPTOR *dd, int *buffer_size, void *buffer) {
+    register DIRECTORY_HEADER *parent_dir = dd->dir;
+    register DIRECTORY_HEADER *dir = dd->self;
+    register int rtn_size = 0;
+    // real_sizeå–æ‰€æœ‰åˆ†é…è¡¨å¤§å°
+    int real_size = dir->allocate_table_number * BLOCK_SIZE;
+    if (*buffer_size < real_size) {
+        *buffer_size = real_size;
+        return ERR_BUFFER_OVERFLOW;
+    }
 
-	DIRECTORY_ENTRY *p = (DIRECTORY_ENTRY*)buffer;
-	for(int i_table = 0; i_table < dir->allocate_table_number; i_table++)
-	{
-		// ¶ÁÈ¡Ä¿Â¼·ÖÅä±í
-		miniReadBlock(dir->table_block_number[i_table], BLOCK_SIZE, dd->table_buffer);
-		DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE*)dd->table_buffer;
-		// ½«ËùÓĞÄ¿Â¼Ïî¸´ÖÆµ½bufferÀï
-		memcpy(p, dat->entry, dat->amount_of_entry * sizeof(DIRECTORY_ENTRY));
-		p += dat->amount_of_entry;
-		rtn_size += dat->amount_of_entry;
-	}
+    DIRECTORY_ENTRY *p = (DIRECTORY_ENTRY *) buffer;
+    for (int i_table = 0; i_table < dir->allocate_table_number; i_table++) {
+        // è¯»å–ç›®å½•åˆ†é…è¡¨
+        miniReadBlock(dir->table_block_number[i_table], BLOCK_SIZE, dd->table_buffer);
+        DIRECTORY_ALLOCATE_TABLE *dat = (DIRECTORY_ALLOCATE_TABLE *) dd->table_buffer;
+        // å°†æ‰€æœ‰ç›®å½•é¡¹å¤åˆ¶åˆ°bufferé‡Œ
+        memcpy(p, dat->entry, dat->amount_of_entry * sizeof(DIRECTORY_ENTRY));
+        p += dat->amount_of_entry;
+        rtn_size += dat->amount_of_entry;
+    }
 	*buffer_size = rtn_size;
 	return ERR_SUCCESS;
 }
@@ -1344,30 +1234,28 @@ ERROR_CODE miniChangeCurrentDirectory(char *path)
 		return status;
 
 	DIRECTORY_DESCRIPTOR *dd;
-	status = miniCreateDirectory(path, "r", &dd);
-	if(status != ERR_SUCCESS)
-		return status;
+    status = miniCreateDirectory(path, "r", &dd);
+    if (status != ERR_SUCCESS)
+        return status;
 
-	g_current_dir->dir_block = dd->dir_block;
-	memcpy(g_current_dir->dir, dd->dir, BLOCK_SIZE);
-	g_current_dir->self_block = dd->self_block;
-	memcpy(g_current_dir->self, dd->self, BLOCK_SIZE);
-	g_current_dir->offset = dd->offset;
+    g_current_dir->dir_block = dd->dir_block;
+    memcpy(g_current_dir->dir, dd->dir, BLOCK_SIZE);
+    g_current_dir->self_block = dd->self_block;
+    memcpy(g_current_dir->self, dd->self, BLOCK_SIZE);
+    g_current_dir->offset = dd->offset;
 
-	// ¾ø¶ÔÂ·¾¶
-	if(path[0] == '/')
-		strcpy(g_current_path, path);
-	else
-	{
-		int length = strlen(g_current_path);
-		// ¸ùÄ¿Â¼²»ĞèÒª²¹'/'
-		if(length > 1)
-		{
-			g_current_path[length] = '/';
-			g_current_path[length + 1] = '\0';
-		}
-		strcat(g_current_path, path);
-	}
+    // ç»å¯¹è·¯å¾„
+    if (path[0] == '/')
+        strcpy(g_current_path, path);
+    else {
+        int length = strlen(g_current_path);
+        // æ ¹ç›®å½•ä¸éœ€è¦è¡¥'/'
+        if (length > 1) {
+            g_current_path[length] = '/';
+            g_current_path[length + 1] = '\0';
+        }
+        strcat(g_current_path, path);
+    }
 
 	miniCloseDirectory(dd);
 	return ERR_SUCCESS;

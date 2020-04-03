@@ -19,7 +19,7 @@ typedef int ERROR_CODE;
 #define ERR_PATH_TOO_LONG		0x0d
 
 #ifdef _DEBUG
-#define DbgPrint(status)	//fprintf(stdout, "%s::%s::%d Error:%02x\n", __FILE__, __FUNCTION__, __LINE__, status)
+#define DbgPrint(status)    fprintf(stdout, "%s::%s::%d Error:%02x\n", __FILE__, __FUNCTION__, __LINE__, status)
 #else
 #define DbgPrint(status)
 #endif

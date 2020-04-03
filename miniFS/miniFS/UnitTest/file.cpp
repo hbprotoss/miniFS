@@ -6,7 +6,7 @@
 #include "miniAPP.h"
 #include "miniBlock.h"
 
-extern FILE_SYSTEM_HEADER *g_file_system_header;		// 文件系统头缓存
+extern FILE_SYSTEM_HEADER *g_file_system_header;		// 锟侥硷拷系统头锟斤拷锟斤拷
 
 int main(int argc, char *argv[])
 {
@@ -18,27 +18,26 @@ int main(int argc, char *argv[])
 	if(ans == 'y' || ans == 'Y')
 	{
 		miniFormat();
-		printf("Format done!\n");
-	}
+        printf("Format done!\n");
+    }
 
-	char buf[BLOCK_SIZE];
-	char buf_read[BLOCK_SIZE];
+    char buf[BLOCK_SIZE];
+    char buf_read[BLOCK_SIZE];
 
-	FILE_DESCRIPTOR *fd;
-	FILE *fp = fopen("F:\\MyProjects\\Projects\\小学期\\miniFS\\test.txt", "rb");
+    FILE_DESCRIPTOR *fd;
+    FILE *fp = fopen("F:\\MyProjects\\Projects\\小学锟斤拷\\miniFS\\test.txt", "rb");
 
-	int size = 0;
-	__int64 res = 0;
-	fseek(fp, 0, SEEK_END);
-	size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
+    int size = 0;
+    long long res = 0;
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
-	fread(buf, size, 1, fp);
+    fread(buf, size, 1, fp);
 
-	while(true)
-	{
-		printf("w/r/d ? ");
-		scanf("%c", &ans);
+    while (true) {
+        printf("w/r/d ? ");
+        scanf("%c", &ans);
 		if(ans == 'q')
 			break;
 		getchar();

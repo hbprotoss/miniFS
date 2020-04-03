@@ -2,39 +2,38 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
-#include <conio.h>
 
 #include <map>
 #include <string>
 #include <iostream>
 
-#include <Windows.h>
 
+#include "util.h"
 #include "miniApp.h"
 #include "miniFile.h"
 #include "miniBlock.h"
 #include "miniError.h"
 
 
-extern FILE *g_storage;						// OSÉÏµÄÎïÀíÎÄ¼ş£¨miniBlock.cpp£©
-extern FILE_SYSTEM_HEADER *g_file_system_header;		// ÎÄ¼şÏµÍ³Í·»º´æ
-extern Bitmap *g_bitmap;					// Î»Í¼»º´æ
-extern char g_current_path[MAX_PATH_NAME];			// È«¾Öµ±Ç°Ä¿Â¼×Ö·û´®(from miniFile.cpp)
+extern FILE *g_storage;                        // OSä¸Šçš„ç‰©ç†æ–‡ä»¶ï¼ˆminiBlock.cppï¼‰
+extern FILE_SYSTEM_HEADER *g_file_system_header;        // æ–‡ä»¶ç³»ç»Ÿå¤´ç¼“å­˜
+extern Bitmap *g_bitmap;                    // ä½å›¾ç¼“å­˜
+extern char g_current_path[MAX_PATH_NAME];            // å…¨å±€å½“å‰ç›®å½•å­—ç¬¦ä¸²(from miniFile.cpp)
 
-char file_buf[BLOCK_SIZE];					// ÎÄ¼ş»º³åÇø
-std::map<std::string,std::string> maplist;			// °ïÖúĞÅÏ¢mapÈİÆ÷
+char file_buf[BLOCK_SIZE];                    // æ–‡ä»¶ç¼“å†²åŒº
+std::map<std::string, std::string> maplist;            // å¸®åŠ©ä¿¡æ¯mapå®¹å™¨
 
-HANDLE hStdout;							// stdout¾ä±ú
+#define OUT_FILE_PREFIX "file://"
+#define OUT_FILE_PREFIX_LEN 7
 
 /*
-* º¯ÊıÃû£ºmount
-*¹¦ÄÜ£ºÆô¶¯ÏµÍ³¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÆô¶¯ÏµÍ³¡£
-* ²ÎÊı£º´ÅÅÌÎÄ¼şÃû£¬¼´ÏµÍ³Ãû¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šmount
+*åŠŸèƒ½ï¼šå¯åŠ¨ç³»ç»Ÿã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£å¯åŠ¨ç³»ç»Ÿã€‚
+* å‚æ•°ï¼šç£ç›˜æ–‡ä»¶åï¼Œå³ç³»ç»Ÿåã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE mount(char *file_name)
-{
-	g_storage = fopen(file_name, "rb+");
+ERROR_CODE mount(char *file_name) {
+    g_storage = fopen(file_name, "rb+");
 	if(g_storage == NULL)
 	{
 		DbgPrint(ERR_NOT_FOUND);
@@ -62,54 +61,51 @@ ERROR_CODE mount(char *file_name)
 				printf("System now exit!\n");
 				exit(1);
 			}
-		}
-		else if(status != ERR_SUCCESS)
-		{
-			DbgPrint(status);
-			return status;
-		}
-	}
+		} else if (status != ERR_SUCCESS) {
+            DbgPrint(status);
+            return status;
+        }
+    }
 
-	using std::map;
-	using std::string;
-	using std::pair;
-	// ¼ÓÔØ×Ö·û´®×ÊÔ´
-	maplist.insert(pair<string,string>("create","create wFName [size]\t½¨Á¢mini-uFSÎÄ¼ş¡£sizeµ¥Î»£ºGB¡£"));
-	maplist.insert(pair<string,string>("mount","mount wFName\t\t½øÈë mini-uFS ÏµÍ³¡£"));
-	maplist.insert(pair<string,string>("fmt","fmt\t\t\t¸ñÊ½»¯ÏµÍ³¡£"));
-	maplist.insert(pair<string,string>("dr","dr [drName]\t\tÏÔÊ¾µ±Ç°»òÖ¸¶¨Ä¿Â¼¡£"));
-	maplist.insert(pair<string,string>("cp","cp FName1 FName2\t½«ÎÄ¼şFName1¸´ÖÆÖÁFName2¡£"));
-	maplist.insert(pair<string,string>("dl","dl uFName\t\tÉ¾³ıÖ¸¶¨ÎÄ¼ş¡£"));
-	maplist.insert(pair<string,string>("tp","tp uFName\t\tÏÔÊ¾Ö¸¶¨ÎÄ¼şÄÚÈİ¡£"));
-	maplist.insert(pair<string,string>("more","more uFName\t\t·ÖÒ³ÏÔÊ¾Ö¸¶¨ÎÄ¼şÄÚÈİ¡£"));
-	maplist.insert(pair<string,string>("att","att uFName\t\tÏÔÊ¾ÎÄ¼şÊôĞÔ¡£"));
-	maplist.insert(pair<string,string>("close","close\t\t\tÍË³öÏµÍ³¡£"));
-	maplist.insert(pair<string,string>("opt","opt\t\t\tÓÅ»¯´ÅÅÌÊ¹ÓÃ¿Õ¼ä¡£"));
-	maplist.insert(pair<string,string>("cd","cd drName\t\tÇĞ»»µ½Ö¸¶¨Ä¿Â¼¡£"));
-	maplist.insert(pair<string,string>("mkdir", "mkdir dir\t\tĞÂ½¨Ä¿Â¼"));
-	maplist.insert(pair<string,string>("help","help [cmd]\t\tÏÔÊ¾ÃüÁîµÄ°ïÖúĞÅÏ¢¡£"));
-	maplist.insert(pair<string,string>("cls","cls\t\t\tÇåÆÁ"));
-	return ERR_SUCCESS;
+    using std::map;
+    using std::string;
+    using std::pair;
+    // åŠ è½½å­—ç¬¦ä¸²èµ„æº
+    maplist.insert(pair<string, string>("create", "create wFName [size]\tå»ºç«‹mini-uFSæ–‡ä»¶ã€‚sizeå•ä½ï¼šGBã€‚"));
+    maplist.insert(pair<string, string>("mount", "mount wFName\t\tè¿›å…¥ mini-uFS ç³»ç»Ÿã€‚"));
+    maplist.insert(pair<string, string>("fmt", "fmt\t\t\tæ ¼å¼åŒ–ç³»ç»Ÿã€‚"));
+    maplist.insert(pair<string, string>("dr", "dr [drName]\t\tæ˜¾ç¤ºå½“å‰æˆ–æŒ‡å®šç›®å½•ã€‚"));
+    maplist.insert(pair<string, string>("cp", "cp FName1 FName2\tå°†æ–‡ä»¶FName1å¤åˆ¶è‡³FName2ã€‚"));
+    maplist.insert(pair<string, string>("dl", "dl uFName\t\tåˆ é™¤æŒ‡å®šæ–‡ä»¶ã€‚"));
+    maplist.insert(pair<string, string>("tp", "tp uFName\t\tæ˜¾ç¤ºæŒ‡å®šæ–‡ä»¶å†…å®¹ã€‚"));
+    maplist.insert(pair<string, string>("more", "more uFName\t\tåˆ†é¡µæ˜¾ç¤ºæŒ‡å®šæ–‡ä»¶å†…å®¹ã€‚"));
+    maplist.insert(pair<string, string>("att", "att uFName\t\tæ˜¾ç¤ºæ–‡ä»¶å±æ€§ã€‚"));
+    maplist.insert(pair<string, string>("close", "close\t\t\té€€å‡ºç³»ç»Ÿã€‚"));
+    maplist.insert(pair<string, string>("opt", "opt\t\t\tä¼˜åŒ–ç£ç›˜ä½¿ç”¨ç©ºé—´ã€‚"));
+    maplist.insert(pair<string, string>("cd", "cd drName\t\tåˆ‡æ¢åˆ°æŒ‡å®šç›®å½•ã€‚"));
+    maplist.insert(pair<string, string>("mkdir", "mkdir dir\t\tæ–°å»ºç›®å½•"));
+    maplist.insert(pair<string, string>("help", "help [cmd]\t\tæ˜¾ç¤ºå‘½ä»¤çš„å¸®åŠ©ä¿¡æ¯ã€‚"));
+    maplist.insert(pair<string, string>("cls", "cls\t\t\tæ¸…å±"));
+    return ERR_SUCCESS;
 }
 
 /*
-* º¯ÊıÃû£ºclose
-*¹¦ÄÜ£ºÍË³öÏµÍ³¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÍË³öÏµÍ³¡£
-* ²ÎÊı£ºÎŞ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šclose
+*åŠŸèƒ½ï¼šé€€å‡ºç³»ç»Ÿã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£é€€å‡ºç³»ç»Ÿã€‚
+* å‚æ•°ï¼šæ— ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE close(void)
-{
-	ERROR_CODE err = ERR_OTHER;
-	err = miniExitSystem(  );		//µ÷ÓÃÎÄ¼ş²ãminiExitSystem½Ó¿Ú
-	return err;
+ERROR_CODE close(void) {
+    ERROR_CODE err = ERR_OTHER;
+    err = miniExitSystem();        //è°ƒç”¨æ–‡ä»¶å±‚miniExitSystemæ¥å£
+    return err;
 }
 
 /*
-* º¯ÊıÃû£ºcls
-*¹¦ÄÜ£ºÇåÆÁ¡£
-* ²ÎÊı£ºÎŞ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šcls
+*åŠŸèƒ½ï¼šæ¸…å±ã€‚
+* å‚æ•°ï¼šæ— ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
 ERROR_CODE cls(void)
 {
@@ -118,10 +114,10 @@ ERROR_CODE cls(void)
 }
 
 /*
-* º¯ÊıÃû£ºsys
-*¹¦ÄÜ£ºÏÔÊ¾ÏµÍ³ĞÅÏ¢¡£
-* ²ÎÊı£ºÎŞ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šsys
+*åŠŸèƒ½ï¼šæ˜¾ç¤ºç³»ç»Ÿä¿¡æ¯ã€‚
+* å‚æ•°ï¼šæ— ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
 ERROR_CODE sys(void)
 {
@@ -144,270 +140,252 @@ ERROR_CODE sys(void)
 }
 
 /*
-* º¯ÊıÃû£ºhelp
-*¹¦ÄÜ£ºÏÔÊ¾°ïÖú¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÏÔÊ¾ÃüÁî°ïÖú¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢ÒªÏÔÊ¾°ïÖúµÄÃüÁîÃû£¬×Ö·û´®Îª¿ÕÊ±ÏÔÊ¾ËùÓĞÃüÁî°ïÖú¡£
-* ·µ»ØÖµ£ºÎŞ¡£
+* å‡½æ•°åï¼šhelp
+*åŠŸèƒ½ï¼šæ˜¾ç¤ºå¸®åŠ©ã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£æ˜¾ç¤ºå‘½ä»¤å¸®åŠ©ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨è¦æ˜¾ç¤ºå¸®åŠ©çš„å‘½ä»¤åï¼Œå­—ç¬¦ä¸²ä¸ºç©ºæ—¶æ˜¾ç¤ºæ‰€æœ‰å‘½ä»¤å¸®åŠ©ã€‚
+* è¿”å›å€¼ï¼šæ— ã€‚
 */
-void help(char *cmd)
-{
-	using std::map;
-	using std::string;
-	using std::pair;
-	using std::cout;
-	using std::endl;
+void help(char *cmd) {
+    using std::map;
+    using std::string;
+    using std::pair;
+    using std::cout;
+    using std::endl;
 
-	map<string,string>::iterator iter;
-	if(cmd==NULL)			//²ÎÊıÎª¿Õ£ºËùÓĞÃüÁîµÄËµÃ÷
-	{
-		for(iter=maplist.begin();iter!=maplist.end();iter++)
-		{
-			cout<<iter->second << endl;
-		}
-	}
-	else					//ÓĞ²ÎÊı£º¾ßÌåÃüÁîµÄËµÃ÷
-	{
-		iter=maplist.find(cmd);
-		if(iter!=maplist.end())
-		{
-			cout << maplist[cmd] << endl;
-		}
-		else		//²ÎÊıËùÖ¸ÃüÁî²»´æÔÚ
-		{
-			cout<<"Command type mismatch£¡You can type 'help command' for help."<<endl;
-		}
+    map<string, string>::iterator iter;
+    if (cmd == NULL)            //å‚æ•°ä¸ºç©ºï¼šæ‰€æœ‰å‘½ä»¤çš„è¯´æ˜
+    {
+        for (iter = maplist.begin(); iter != maplist.end(); iter++) {
+            cout << iter->second << endl;
+        }
+    } else                    //æœ‰å‚æ•°ï¼šå…·ä½“å‘½ä»¤çš„è¯´æ˜
+    {
+        iter = maplist.find(cmd);
+        if (iter != maplist.end()) {
+            cout << maplist[cmd] << endl;
+        } else        //å‚æ•°æ‰€æŒ‡å‘½ä»¤ä¸å­˜åœ¨
+        {
+            cout << "Command type mismatchï¼You can type 'help command' for help." << endl;
+        }
 	}
 }
 
 /*
-* º¯ÊıÃû£ºfmt
-*¹¦ÄÜ£º¸ñÊ½»¯ÏµÍ³¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿Ú¸ñÊ½»¯ÏµÍ³¡£
-* ²ÎÊı£ºÎŞ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šfmt
+*åŠŸèƒ½ï¼šæ ¼å¼åŒ–ç³»ç»Ÿã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£æ ¼å¼åŒ–ç³»ç»Ÿã€‚
+* å‚æ•°ï¼šæ— ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE fmt(void)
-{
-	ERROR_CODE err = ERR_OTHER;
-	err = miniFormat( );		//µ÷ÓÃÎÄ¼ş²ãminiFormat½Ó¿Ú
-	if(err == ERR_SUCCESS)
-		miniChangeCurrentDirectory("/");
-	return err;
+ERROR_CODE fmt(void) {
+    ERROR_CODE err = ERR_OTHER;
+    err = miniFormat();        //è°ƒç”¨æ–‡ä»¶å±‚miniFormatæ¥å£
+    if (err == ERR_SUCCESS)
+        miniChangeCurrentDirectory("/");
+    return err;
 }
 
 /*
-* º¯ÊıÃû£ºopt
-*¹¦ÄÜ£ºÓÅ»¯´ÅÅÌ´æ´¢¿Õ¼ä¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÓÅ»¯´æ´¢¿Õ¼ä¡£
-* ²ÎÊı£ºÎŞ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û
+* å‡½æ•°åï¼šopt
+*åŠŸèƒ½ï¼šä¼˜åŒ–ç£ç›˜å­˜å‚¨ç©ºé—´ã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£ä¼˜åŒ–å­˜å‚¨ç©ºé—´ã€‚
+* å‚æ•°ï¼šæ— ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœ
 */
-ERROR_CODE opt(void)
-{
-	ERROR_CODE err = ERR_OTHER;
-	//err = miniOptimize();		//µ÷ÓÃÎÄ¼ş²ãminiOptimize½Ó¿Ú
-	return err;
+ERROR_CODE opt(void) {
+    ERROR_CODE err = ERR_OTHER;
+    //err = miniOptimize();		//è°ƒç”¨æ–‡ä»¶å±‚miniOptimizeæ¥å£
+    return err;
 }
 
 /*
-* º¯ÊıÃû£ºmkdir
-*¹¦ÄÜ£º½¨Á¢Ä¿Â¼¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿Ú½¨Á¢Ä¿Â¼¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢Â·¾¶£¨¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šmkdir
+*åŠŸèƒ½ï¼šå»ºç«‹ç›®å½•ã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£å»ºç«‹ç›®å½•ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨è·¯å¾„ï¼ˆç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE mkdir(char *path)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE mkdir(char *path) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
 
-	DIRECTORY_DESCRIPTOR * dDes;
-	err_flag = miniCreateDirectory(path, "r", &dDes);	//´ò¿ªÄ¿Â¼
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿Â¼³É¹¦£¬ÔòÄ¿Â¼Ãû³åÍ»
-	{
-		err_mid = miniCloseDirectory(dDes);		//¹Ø±ÕÎÄ¼ş
-		printf("Directory exists!\n");
-		return ERR_SUCCESS;
-	}
-	if(err_flag == ERR_TYPE_MISMATCH)		//´ò¿ªµÄÄ¿±êÄ¿Â¼ÎªÎÄ¼ş£¬ÔòÄ¿Â¼Ãû³åÍ»
-	{
-		printf("\"%s\" is a file. Cannot create directory!\n", path);
-		return ERR_SUCCESS;
-	}
+    DIRECTORY_DESCRIPTOR *dDes;
+    err_flag = miniCreateDirectory(path, "r", &dDes);    //æ‰“å¼€ç›®å½•
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®å½•æˆåŠŸï¼Œåˆ™ç›®å½•åå†²çª
+    {
+        err_mid = miniCloseDirectory(dDes);        //å…³é—­æ–‡ä»¶
+        printf("Directory exists!\n");
+        return ERR_SUCCESS;
+    }
+    if (err_flag == ERR_TYPE_MISMATCH)        //æ‰“å¼€çš„ç›®æ ‡ç›®å½•ä¸ºæ–‡ä»¶ï¼Œåˆ™ç›®å½•åå†²çª
+    {
+        printf("\"%s\" is a file. Cannot create directory!\n", path);
+        return ERR_SUCCESS;
+    }
 
-	if(err_flag == ERR_NOT_FOUND)		//´ò¿ªµÄÄ¿±êÄ¿Â¼Î´ÕÒµ½£¬¿É´´½¨¸ÃÄ¿Â¼
-	{
-		err_ret = miniCreateDirectory(path, "w", &dDes);		//´´½¨Ä¿Â¼
-		return  err_ret;
-	}
+    if (err_flag == ERR_NOT_FOUND)        //æ‰“å¼€çš„ç›®æ ‡ç›®å½•æœªæ‰¾åˆ°ï¼Œå¯åˆ›å»ºè¯¥ç›®å½•
+    {
+        err_ret = miniCreateDirectory(path, "w", &dDes);        //åˆ›å»ºç›®å½•
+        return err_ret;
+    } else
+        return err_flag;
+}
+
+/*
+* å‡½æ•°åï¼šcd
+*åŠŸèƒ½ï¼šåˆ‡æ¢ç›®å½•ã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£åˆ‡æ¢ç›®å½•ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨è·¯å¾„ï¼ˆç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
+*/
+ERROR_CODE cd(char *path) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+
+    DIRECTORY_DESCRIPTOR *dDes;
+    err_flag = miniCreateDirectory(path, "r", &dDes);    //æ‰“å¼€ç›®å½•
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®å½•æˆåŠŸ
+    {
+        err_ret = miniChangeCurrentDirectory(path);    //åˆ‡æ¢ç›®å½•
+        err_mid = miniCloseDirectory(dDes);        //å…³é—­ç›®å½•
+        return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+    } else
+        return err_flag;
+}
+
+/*
+* å‡½æ•°åï¼šcd
+*åŠŸèƒ½ï¼šæ˜¾ç¤ºç›®å½•ã€‚å‘½ä»¤è§£æå±‚è°ƒç”¨è¯¥æ¥å£æ˜¾ç¤ºç›®å½•å†…å®¹ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨è·¯å¾„ï¼ˆç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„ï¼‰ï¼Œå½“å­—ç¬¦ä¸²ä¸ºç©ºæ—¶æ˜¾ç¤ºå½“å‰ç›®å½•å†…å®¹ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
+*/
+ERROR_CODE dr(char *path) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+
+    DIRECTORY_DESCRIPTOR *dDes;
+    err_flag = miniCreateDirectory(path, "r", &dDes);    //æ‰“å¼€ç›®å½•
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®å½•æˆåŠŸ
+    {
+        int size = 0;
+        if (miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)        //è¯•æ¢ç›®å½•é¡¹æ•°
+        {
+            DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *) calloc(1, size);
+            err_ret = miniReadDirectory(dDes, &size, entry);        //è¯»å–ç›®å½•é¡¹
+            for (int i = 0; i < size; i++)        //è¾“å‡ºç›®å½•å†…å®¹
+            {
+                printf("%s\t\t%s\n", entry[i].name, (entry[i].is_file ? "FILE" : "DIR"));
+            }
+            free(entry);
+        }
+
+        err_mid = miniCloseDirectory(dDes);        //å…³é—­ç›®å½•
+        if (size == 0)        //ç›®å½•ä¸ºç©º
+            printf("Directory is empty!\n");
+        return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+    }
 	else
 		return err_flag;
 }
 
 /*
-* º¯ÊıÃû£ºcd
-*¹¦ÄÜ£ºÇĞ»»Ä¿Â¼¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÇĞ»»Ä¿Â¼¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢Â·¾¶£¨¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šatt
+*åŠŸèƒ½ï¼šæ˜¾ç¤ºç›®å½•æˆ–æ–‡ä»¶å±æ€§ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨ç›®å½•æˆ–æ–‡ä»¶åï¼Œä¸ºç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„åŠ æ–‡ä»¶åï¼Œå¼‚æˆ–ç›´æ¥ä¸ºæ–‡ä»¶åï¼ˆé»˜è®¤å½“å‰ç›®å½•ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE cd(char *path)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE att(char *file_name) {
+    ERROR_CODE err_ret = ERR_OTHER;
 
-	DIRECTORY_DESCRIPTOR * dDes;
-	err_flag = miniCreateDirectory(path, "r", &dDes);	//´ò¿ªÄ¿Â¼
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿Â¼³É¹¦
-	{
-		err_ret = miniChangeCurrentDirectory(path);	//ÇĞ»»Ä¿Â¼
-		err_mid = miniCloseDirectory(dDes);		//¹Ø±ÕÄ¿Â¼
-		return err_ret;		//·µ»Ø×´Ì¬´úÂë
-	}
-	else
-		return err_flag;
-}
+    /*****************æ˜¯å¦å«æœ‰é€šé…ç¬¦åˆ¤æ–­*********************/
+    int len = strlen(file_name);
+    int pos = 0;
+    for (int i = 0; i < len; i++) {
+        if (file_name[i] == '/')
+            pos = i;
+    }
+    int flag = 0;
+    for (int i = pos; i < len; i++) {
+        if (file_name[i] == '*' || file_name[i] == '?')
+            flag = 1;
+    }
 
-/*
-* º¯ÊıÃû£ºcd
-*¹¦ÄÜ£ºÏÔÊ¾Ä¿Â¼¡£ÃüÁî½âÎö²ãµ÷ÓÃ¸Ã½Ó¿ÚÏÔÊ¾Ä¿Â¼ÄÚÈİ¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢Â·¾¶£¨¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶£©£¬µ±×Ö·û´®Îª¿ÕÊ±ÏÔÊ¾µ±Ç°Ä¿Â¼ÄÚÈİ¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
-*/
-ERROR_CODE dr(char *path)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+    /*****************æ˜¾ç¤ºç›®å½•æˆ–æ–‡ä»¶å±æ€§*********************/
+    if (flag == 0)        //ä¸å«é€šé…ç¬¦
+    {
+        err_ret = att_print(file_name);
+        return err_ret;
+    } else        //å«æœ‰é€šé…ç¬¦
+    {
+        if (pos == 0)        //ç›¸å¯¹è·¯å¾„å«é€šé…ç¬¦
+        {
+            DIRECTORY_DESCRIPTOR *dDes;
+            err_ret = miniCreateDirectory(g_current_path, "r", &dDes);    //æ‰“å¼€ç›®å½•
+            if (err_ret != ERR_SUCCESS)        //æ‰“å¼€ä¸ç›®å½•æˆåŠŸ
+                return err_ret;
+            else        //æ‰“å¼€ç›®å½•æˆåŠŸ
+            {
+                int size = 0;
+                int flag_have = 0;
+                if (miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)        //è¯•æ¢ç›®å½•é¡¹æ•°
+                {
+                    DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *) calloc(1, size);
+                    err_ret = miniReadDirectory(dDes, &size, entry);        //è¯»å–ç›®å½•é¡¹
+                    for (int i = 0; i < size; i++)        //é€ä¸ªç›®å½•é¡¹åŒ¹é…ï¼Œå¤„ç†
+                    {
+                        int mark = 0;
+                        mark = WildcardMatches(file_name, entry[i].name);
+                        if (mark == 1)        //åŒ¹é…æˆåŠŸ
+                        {
+                            flag_have = 1;
+                            err_ret = att_print(entry[i].name);        //è¾“å‡ºè¯¥ç›®å½•é¡¹å†…å®¹
+                            printf("\n");
+                            if (err_ret != ERR_SUCCESS)
+                                return err_ret;
+                        } else
+                            continue;
+                    }
+                    free(entry);
+                } else
+                    return miniReadDirectory(dDes, &size, NULL);
 
-	DIRECTORY_DESCRIPTOR * dDes;
-	err_flag = miniCreateDirectory(path, "r", &dDes);	//´ò¿ªÄ¿Â¼
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿Â¼³É¹¦
-	{
-		int size = 0;
-		if(miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)		//ÊÔÌ½Ä¿Â¼ÏîÊı
-		{
-			DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *)calloc(1, size);
-			err_ret = miniReadDirectory(dDes, &size, entry);		//¶ÁÈ¡Ä¿Â¼Ïî
-			for(int i = 0; i < size; i++)		//Êä³öÄ¿Â¼ÄÚÈİ
-			{
-				printf("%s\t\t%s\n", entry[i].name, (entry[i].is_file ? "FILE" : "DIR"));
-			}
-			free(entry);
-		}
+                if (flag_have == 0)        //æ— ä»»ä½•ä¸€ä¸ªé¡¹åŒ¹é…
+                    printf("No one is matching\n");
+                return ERR_SUCCESS;
+            }
+        } else        //ç»å¯¹è·¯å¾„å«é€šé…ç¬¦
+        {
+            char path[550];
+            char name[260];
+            for (int i = 0; i < pos; i++)        //æå–ç›®å½•
+                path[i] = file_name[i];
+            for (int i = pos + 1; i < len; i++)    //æå–å«é€šé…ç¬¦çš„æ–‡ä»¶å
+                name[i - pos - 1] = file_name[i];
+            path[pos] = '\0';
+            name[len - pos - 1] = '\0';
 
-		err_mid = miniCloseDirectory(dDes);		//¹Ø±ÕÄ¿Â¼
-		if(size == 0)		//Ä¿Â¼Îª¿Õ
-			printf("Directory is empty!\n");
-		return err_ret;		//·µ»Ø×´Ì¬´úÂë
-	}
-	else
-		return err_flag;
-}
-
-/*
-* º¯ÊıÃû£ºatt
-*¹¦ÄÜ£ºÏÔÊ¾Ä¿Â¼»òÎÄ¼şÊôĞÔ¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢Ä¿Â¼»òÎÄ¼şÃû£¬Îª¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶¼ÓÎÄ¼şÃû£¬Òì»òÖ±½ÓÎªÎÄ¼şÃû£¨Ä¬ÈÏµ±Ç°Ä¿Â¼£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
-*/
-ERROR_CODE att(char *file_name)
-{
-	ERROR_CODE err_ret = ERR_OTHER;
-
-	/*****************ÊÇ·ñº¬ÓĞÍ¨Åä·ûÅĞ¶Ï*********************/
-	int len = strlen(file_name);
-	int pos  = 0;
-	for(int i=0; i<len; i++)
-	{
-		if(file_name[i] == '/')
-			pos = i;
-	}
-	int flag = 0;
-	for(int i=pos; i<len; i++)
-	{
-		if(file_name[i] == '*' || file_name[i] == '?')
-			flag =1;
-	}
-
-	/*****************ÏÔÊ¾Ä¿Â¼»òÎÄ¼şÊôĞÔ*********************/
-	if(flag == 0)		//²»º¬Í¨Åä·û
-	{
-		err_ret = att_print(file_name);
-		return err_ret;
-	}
-	else		//º¬ÓĞÍ¨Åä·û
-	{
-		if(pos == 0)		//Ïà¶ÔÂ·¾¶º¬Í¨Åä·û
-		{
-			DIRECTORY_DESCRIPTOR * dDes;
-			err_ret = miniCreateDirectory(g_current_path, "r", &dDes);	//´ò¿ªÄ¿Â¼
-			if(err_ret != ERR_SUCCESS)		//´ò¿ª²»Ä¿Â¼³É¹¦
-				return err_ret;
-			else		//´ò¿ªÄ¿Â¼³É¹¦
-			{
-				int size = 0;
-				int flag_have = 0;
-				if(miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)		//ÊÔÌ½Ä¿Â¼ÏîÊı
-				{
-					DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *)calloc(1, size);
-					err_ret = miniReadDirectory(dDes, &size, entry);		//¶ÁÈ¡Ä¿Â¼Ïî
-					for(int i = 0; i < size; i++)		//Öğ¸öÄ¿Â¼ÏîÆ¥Åä£¬´¦Àí
-					{
-						int mark = 0;
-						mark = WildcardMatches(file_name, entry[i].name);
-						if(mark == 1)		//Æ¥Åä³É¹¦
-						{
-							flag_have = 1;
-							err_ret = att_print(entry[i].name);		//Êä³ö¸ÃÄ¿Â¼ÏîÄÚÈİ
-							printf("\n");
-							if(err_ret != ERR_SUCCESS)
-								return err_ret;
-						}
-						else
-							continue;
-					}
-					free(entry);
-				}
-				else
-					return miniReadDirectory(dDes, &size, NULL);
-
-				if(flag_have == 0)		//ÎŞÈÎºÎÒ»¸öÏîÆ¥Åä
-					printf("No one is matching\n");
-				return ERR_SUCCESS;
-			}
-		}
-		else		//¾ø¶ÔÂ·¾¶º¬Í¨Åä·û
-		{
-			char path[550];
-			char name[260];
-			for(int i=0; i<pos; i++)		//ÌáÈ¡Ä¿Â¼
-				path[i] = file_name[i];
-			for(int i=pos+1; i<len; i++)	//ÌáÈ¡º¬Í¨Åä·ûµÄÎÄ¼şÃû
-				name[i-pos-1] = file_name[i];
-			path[pos] = '\0';  name[len-pos-1] = '\0';
-
-			DIRECTORY_DESCRIPTOR * dDes;
-			char path_cp[520];
-			strcpy(path_cp, path);
-			err_ret = miniCreateDirectory(path_cp, "r", &dDes);	//´ò¿ªÄ¿Â¼
-			if(err_ret != ERR_SUCCESS)		//´ò¿ª²»Ä¿Â¼³É¹¦
-				return err_ret;
-			else		//´ò¿ªÄ¿Â¼³É¹¦
-			{
-				int size = 0;
-				int flag_have = 0;
-				if(miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)		//ÊÔÌ½Ä¿Â¼ÏîÊı
-				{
-					DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *)calloc(1, size);
-					err_ret = miniReadDirectory(dDes, &size, entry);		//¶ÁÈ¡Ä¿Â¼Ïî
-					for(int i = 0; i < size; i++)		//Öğ¸öÄ¿Â¼ÏîÆ¥Åä£¬´¦Àí
-					{
-						int mark = 0;
-						mark = WildcardMatches(name, entry[i].name);
-						if(mark == 1)		//Æ¥Åä³É¹¦
-						{
-							flag_have = 1;
-							strcpy(path_cp, path);
-							strcat(path_cp,"/");
-							strcat(path_cp,entry[i].name);
-							err_ret = att_print(path_cp);		//Êä³ö¸ÃÄ¿Â¼ÏîÄÚÈİ
-							printf("\n");
-							if(err_ret != ERR_SUCCESS)
-								return err_ret;
-						}
+            DIRECTORY_DESCRIPTOR *dDes;
+            char path_cp[520];
+            strcpy(path_cp, path);
+            err_ret = miniCreateDirectory(path_cp, "r", &dDes);    //æ‰“å¼€ç›®å½•
+            if (err_ret != ERR_SUCCESS)        //æ‰“å¼€ä¸ç›®å½•æˆåŠŸ
+                return err_ret;
+            else        //æ‰“å¼€ç›®å½•æˆåŠŸ
+            {
+                int size = 0;
+                int flag_have = 0;
+                if (miniReadDirectory(dDes, &size, NULL) == ERR_BUFFER_OVERFLOW)        //è¯•æ¢ç›®å½•é¡¹æ•°
+                {
+                    DIRECTORY_ENTRY *entry = (DIRECTORY_ENTRY *) calloc(1, size);
+                    err_ret = miniReadDirectory(dDes, &size, entry);        //è¯»å–ç›®å½•é¡¹
+                    for (int i = 0; i < size; i++)        //é€ä¸ªç›®å½•é¡¹åŒ¹é…ï¼Œå¤„ç†
+                    {
+                        int mark = 0;
+                        mark = WildcardMatches(name, entry[i].name);
+                        if (mark == 1)        //åŒ¹é…æˆåŠŸ
+                        {
+                            flag_have = 1;
+                            strcpy(path_cp, path);
+                            strcat(path_cp, "/");
+                            strcat(path_cp, entry[i].name);
+                            err_ret = att_print(path_cp);        //è¾“å‡ºè¯¥ç›®å½•é¡¹å†…å®¹
+                            printf("\n");
+                            if (err_ret != ERR_SUCCESS)
+                                return err_ret;
+                        }
 						else
 							continue;
 					}
@@ -425,587 +403,375 @@ ERROR_CODE att(char *file_name)
 }
 
 /*
-* º¯ÊıÃû£ºtp
-*¹¦ÄÜ£ºÏÔÊ¾Ö¸¶¨ÎÄ¼şµÄÄÚÈİ¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢ÎÄ¼şÃû£¬Îª¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶¼ÓÎÄ¼şÃû£¬Òì»òÖ±½ÓÎªÎÄ¼şÃû£¨Ä¬ÈÏµ±Ç°Ä¿Â¼£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼štp
+*åŠŸèƒ½ï¼šæ˜¾ç¤ºæŒ‡å®šæ–‡ä»¶çš„å†…å®¹ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨æ–‡ä»¶åï¼Œä¸ºç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„åŠ æ–‡ä»¶åï¼Œå¼‚æˆ–ç›´æ¥ä¸ºæ–‡ä»¶åï¼ˆé»˜è®¤å½“å‰ç›®å½•ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE tp(char *file_name)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE tp(char *file_name) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
 
-	FILE_DESCRIPTOR * fDes;
-	err_flag = miniCreateFile(file_name, 0, "r", &fDes);		//´ò¿ªÎÄ¼ş
-	
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÎÄ¼ş³É¹¦
-	{
-		char buf[BLOCK_SIZE];
-		__int64 read;
-		do		//¶ÁÎÄ¼ş
-		{
-			err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
-			if(err_ret == ERR_SUCCESS)		//¶ÁÎÄ¼ş³É¹¦
-				fwrite(buf, read, 1, stdout);
-			else		//¶ÁÎÄ¼şÊ§°Ü
-				break;
-		}while(read == BLOCK_SIZE);
-		printf("\n");
+    FILE_DESCRIPTOR *fDes;
+    err_flag = miniCreateFile(file_name, 0, "r", &fDes);        //æ‰“å¼€æ–‡ä»¶
 
-		err_mid = miniCloseFile(fDes);		//¹Ø±ÕÎÄ¼ş
-		return err_ret;		//·µ»Ø×´Ì¬´úÂë
-	}
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€æ–‡ä»¶æˆåŠŸ
+    {
+        char buf[BLOCK_SIZE];
+        long long read;
+        do        //è¯»æ–‡ä»¶
+        {
+            err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
+            if (err_ret == ERR_SUCCESS)        //è¯»æ–‡ä»¶æˆåŠŸ
+                fwrite(buf, read, 1, stdout);
+            else        //è¯»æ–‡ä»¶å¤±è´¥
+                break;
+        } while (read == BLOCK_SIZE);
+        printf("\n");
+
+        err_mid = miniCloseFile(fDes);        //å…³é—­æ–‡ä»¶
+        return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+    }
 	else
 		return err_flag;
 }
 
 /*
-* º¯ÊıÃû£ºmore
-*¹¦ÄÜ£º·ÖÒ³ÏÔÊ¾Ö¸¶¨ÎÄ¼şµÄÄÚÈİ¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢ÎÄ¼şÃû£¬Îª¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶¼ÓÎÄ¼şÃû£¬Òì»òÖ±½ÓÎªÎÄ¼şÃû£¨Ä¬ÈÏµ±Ç°Ä¿Â¼£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šmore
+*åŠŸèƒ½ï¼šåˆ†é¡µæ˜¾ç¤ºæŒ‡å®šæ–‡ä»¶çš„å†…å®¹ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨æ–‡ä»¶åï¼Œä¸ºç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„åŠ æ–‡ä»¶åï¼Œå¼‚æˆ–ç›´æ¥ä¸ºæ–‡ä»¶åï¼ˆé»˜è®¤å½“å‰ç›®å½•ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE more(char *file_name)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE more(char *file_name) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
 
-	FILE_DESCRIPTOR * fDes;
-	err_flag = miniCreateFile(file_name, 0, "r", &fDes);		//´ò¿ªÎÄ¼ş
-	
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÎÄ¼ş³É¹¦
-	{
-		char buf[BLOCK_SIZE];
-		__int64 read, write;
-		int row, col;
-		int num_row = 0,  num_bite = 0;
-		int flag = 0;	//ÊÇ·ñµÚÒ»´ÎÊä³ö
-		int mark = 1;	//Ò»´Î·ÖÒ³Êä³öÊÇ·ñÍê³É
+    FILE_DESCRIPTOR *fDes;
+    err_flag = miniCreateFile(file_name, 0, "r", &fDes);        //æ‰“å¼€æ–‡ä»¶
 
-		CONSOLE_SCREEN_BUFFER_INFO csbiInfo; 
-		SMALL_RECT *srctWindow; 
-		hStdout = GetStdHandle(STD_OUTPUT_HANDLE); 
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€æ–‡ä»¶æˆåŠŸ
+    {
+        char buf[BLOCK_SIZE];
+        long long read;
+        do        //è¯»æ–‡ä»¶
+        {
+            err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
+            if (err_ret == ERR_SUCCESS)        //è¯»æ–‡ä»¶æˆåŠŸ,åˆ†é¡µè¾“å‡º
+            {
+                fwrite(buf, sizeof(char), read, stdout);
+            } else        //è¯»æ–‡ä»¶å¤±è´¥
+                break;
+        } while (read == BLOCK_SIZE);
+        printf("\n");
 
-		do		//¶ÁÎÄ¼ş
-		{
-			err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
-			if(err_ret == ERR_SUCCESS)		//¶ÁÎÄ¼ş³É¹¦,·ÖÒ³Êä³ö
-			{
-				write = 0;
-				char ch;
-				char *read_in = (char*)buf;
-				for(  ;  ;  )		//Ñ­»··ÖÒ³½øĞĞÊä³ö
-				{
-					/*****************È·¶¨±¾´ÎÊä³öµÄĞĞÊıÓëÁĞÊı*********************/
-					if(flag == 0)		//µÚÒ»´ÎÂúÆÁÏÔÊ¾
-					{
-						if (! GetConsoleScreenBufferInfo(hStdout, &csbiInfo))		//¶ÁÈ¡¿ØÖÆÌ¨¸ß¶ÈÓë¿í¶È
-						{
-							printf("GetConsoleScreenBufferInfo (%d)\n", GetLastError()); 
-							return FALSE;
-						}
-						srctWindow = &csbiInfo.srWindow;
-						row = srctWindow->Bottom - srctWindow->Top;		col = srctWindow->Right+1;		//È·¶¨±¾´ÎÊä³öĞĞÁĞÊı
-						flag = 1;
-					}
-					else		//·ÇµÚÒ»´ÎÊä³ö
-					{
-						if(mark == 1)	//ÉÏÒ»´Î·ÖÒ³ÏÔÊ¾ÒÑ¾­Íê³É
-						{
-							for(char c  ;  ;  )
-							{
-								c = getch();	//·Ç·¨ÊäÈë
-								if(c != ' ' && c != '\r' && c !='q')
-									continue;
-								else
-								{
-									if (! GetConsoleScreenBufferInfo(hStdout, &csbiInfo))		//¶ÁÈ¡¿ØÖÆÌ¨¸ß¶ÈÓë¿í¶È
-									{
-										printf("GetConsoleScreenBufferInfo (%d)\n", GetLastError()); 
-										return FALSE;
-									}
-									srctWindow = &csbiInfo.srWindow;
-									if(c == ' ')	//ÏÔÊ¾Ò»ĞĞ
-									{
-										row = 1;		col = srctWindow->Right+1;		//È·¶¨±¾´ÎÊä³öĞĞÁĞÊı
-									}
-									else
-									{
-										if(c == '\r')	//ÏÔÊ¾Ò»ÆÁ
-										{
-											row = srctWindow->Bottom - srctWindow->Top;		col = srctWindow->Right+1;		//È·¶¨±¾´ÎÊä³öĞĞÁĞÊı
-										}
-										else
-											return ERR_SUCCESS;
-									}
-									break;
-								}
-							}
-						}
-					}
+        //CloseHandle(hStdout);
+        err_mid = miniCloseFile(fDes);        //å…³é—­æ–‡ä»¶
 
-					/*****************Íê³ÉÒ»´Î·ÖÒ³Êä³öÊä³ö*********************/
-					for( ; num_row<row; )
-					{
-						if(write < read)
-						{
-							ch = read_in[write];
-							++write;
-						}
-						else
-							break;
-						if(ch == '\r')		//¶ÁÈë»»ĞĞ·û,Îª'\r'ºÍ'\n'
-						{
-							if(write < read)
-							{
-								ch = read_in[write];
-								write++;
-								if(ch == '\n')	// ¶ÁÈë\n
-								{
-									putchar(ch);
-									++ num_row;		num_bite = 0;
-								}
-								else		// ¶ÁÈë\r
-									continue;
-							}
-							else
-								break;
-
-						}	//
-						else		//Î´Óöµ½»»ĞĞ
-						{
-							if( num_bite+1 == col)		//Êä³öÒÑÂúÒ»ĞĞ
-							{
-								putchar(ch);
-								++ num_row;		num_bite = 0;
-							}
-							else		//Õı³£Êä³ö£ºÎ´ÂúÒ»ĞĞ&&Î´Óöµ½»»ĞĞ
-							{
-								putchar(ch);
-								if(ch == '\t')
-									num_bite = num_bite + 4;
-								else
-									++num_bite;
-							}
-						}
-					}
-					/*****************²¿·Ö±ê¼ÇÁ¿µÄ¸üĞÂ*********************/
-					if(num_row >= row)		//Íê³ÉÒ»´Î·ÖÒ³Êä³ö
-					{
-						num_row = 0;		num_bite = 0;
-						mark = 1;
-					}
-					else		//Î´Íê³ÉÒ»´Î·ÖÒ³Êä³ö
-						mark = 0;
-					if(write >= read)		//Ò»¸ö¿éÖĞÊı¾İÒÑ¾­È«²¿Êä³ö
-						break;
-				}
-			}
-			else		//¶ÁÎÄ¼şÊ§°Ü
-				break;
-		}while(read == BLOCK_SIZE);
-		printf("\n");
-
-		//CloseHandle(hStdout);
-		err_mid = miniCloseFile(fDes);		//¹Ø±ÕÎÄ¼ş
-
-		return err_ret;		//·µ»Ø×´Ì¬´úÂë
-	}
+        return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+    }
 	else
 		return err_flag;
 }
 
 /*
-* º¯ÊıÃû£ºcp
-*¹¦ÄÜ£º¿½±´ÎÄ¼ş»òÄ¿Â¼£¨Ö§³ÖÏµÍ³Íâ¿½±´ÖÁÏµÍ³ÄÚ£¬ÏµÍ³ÄÚ¿½±´µ½ÏµÍ³ÍâÒÔ¼°ÏµÍ³ÄÚÏà»¥¿½±´£©¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢ÎÄ¼şÃû»òÄ¿Â¼Ãû£¬Îª¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶¼ÓÎÄ¼şÃû£¨Ä¿Â¼Ãû£©£¬Òì»òÖ±½ÓÎªÎÄ¼şÃû»òÄ¿Â¼Ãû£¨Ä¬ÈÏµ±Ç°Ä¿Â¼£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šcp
+*åŠŸèƒ½ï¼šæ‹·è´æ–‡ä»¶æˆ–ç›®å½•ï¼ˆæ”¯æŒç³»ç»Ÿå¤–æ‹·è´è‡³ç³»ç»Ÿå†…ï¼Œç³»ç»Ÿå†…æ‹·è´åˆ°ç³»ç»Ÿå¤–ä»¥åŠç³»ç»Ÿå†…ç›¸äº’æ‹·è´ï¼‰ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨æ–‡ä»¶åæˆ–ç›®å½•åï¼Œä¸ºç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„åŠ æ–‡ä»¶åï¼ˆç›®å½•åï¼‰ï¼Œå¼‚æˆ–ç›´æ¥ä¸ºæ–‡ä»¶åæˆ–ç›®å½•åï¼ˆé»˜è®¤å½“å‰ç›®å½•ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE cp(char *src, char *dst)
-{
-	if(src[1] == ':' && src[2] == '\\')		//ÏµÍ³ÍâÏòÏµÍ³ÄÚ¸´ÖÆ
-	{
-		FILE * fp = NULL;
-		fp = fopen(src, "rb");		//´ò¿ªÔ­ÎÄ¼ş
-		if(fp == NULL)		//´ò¿ªÔ­ÎÄ¼şÊ§°Ü
-			return ERR_NOT_FOUND;
-		else		//´ò¿ªÔ­ÎÄ¼ş³É¹¦
-		{
-			ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
-			FILE_DESCRIPTOR * fDes;
-			err_flag = miniCreateFile(dst, 0, "r", &fDes);		//´ò¿ªÄ¿±êÎÄ¼ş
-			if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿±êÎÄ¼ş³É¹¦£¬ÔòÎÄ¼şÃû³åÍ»
-			{
-				err_mid = miniCloseFile(fDes);		//¹Ø±ÕÎÄ¼ş
-				printf("File exists!\n");
-				return ERR_SUCCESS;
-			}
-			if(err_flag == ERR_TYPE_MISMATCH)		//´ò¿ªµÄÄ¿±êÎÄ¼şÎªÄ¿Â¼£¬ÔòÎÄ¼şÃû³åÍ»
-			{
-				printf("\"%s\" is a directory. Cannot create file!\n", dst);
-				return ERR_SUCCESS;
-			}
+ERROR_CODE cp(char *src, char *dst) {
+    if (startsWith(OUT_FILE_PREFIX, src))        //ç³»ç»Ÿå¤–å‘ç³»ç»Ÿå†…å¤åˆ¶
+    {
+        src = src + OUT_FILE_PREFIX_LEN;
+        FILE *fp = NULL;
+        fp = fopen(src, "rb");        //æ‰“å¼€åŸæ–‡ä»¶
+        if (fp == NULL)        //æ‰“å¼€åŸæ–‡ä»¶å¤±è´¥
+            return ERR_NOT_FOUND;
+        else        //æ‰“å¼€åŸæ–‡ä»¶æˆåŠŸ
+        {
+            ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+            FILE_DESCRIPTOR *fDes;
+            err_flag = miniCreateFile(dst, 0, "r", &fDes);        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+            if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶æˆåŠŸï¼Œåˆ™æ–‡ä»¶åå†²çª
+            {
+                err_mid = miniCloseFile(fDes);        //å…³é—­æ–‡ä»¶
+                printf("File exists!\n");
+                return ERR_SUCCESS;
+            }
+            if (err_flag == ERR_TYPE_MISMATCH)        //æ‰“å¼€çš„ç›®æ ‡æ–‡ä»¶ä¸ºç›®å½•ï¼Œåˆ™æ–‡ä»¶åå†²çª
+            {
+                printf("\"%s\" is a directory. Cannot create file!\n", dst);
+                return ERR_SUCCESS;
+            }
 
-			if(err_flag == ERR_NOT_FOUND)		//´ò¿ªµÄÄ¿±êÎÄ¼şÎ´ÕÒµ½£¬¿É½øÒ»²½½øĞĞ¸´ÖÆ
-			{
-				if(miniEnoughSpace(fp) == true)		//ÏµÍ³¿Õ¼ä×ã¹»£¬¿ªÊ¼¸´ÖÆ
-				{
-					err_flag = miniCreateFile(dst, GetFileSize(fp), "w", &fDes);		//Ğ´·½Ê½´ò¿ªÄ¿±êÎÄ¼ş
-					if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿±êÎÄ¼ş³É¹¦£¬¼ÌĞø½øĞĞ¸´ÖÆ
-					{
-						hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-						CONSOLE_SCREEN_BUFFER_INFO csb;
-						GetConsoleScreenBufferInfo(hStdout, &csb);
+            if (err_flag == ERR_NOT_FOUND)        //æ‰“å¼€çš„ç›®æ ‡æ–‡ä»¶æœªæ‰¾åˆ°ï¼Œå¯è¿›ä¸€æ­¥è¿›è¡Œå¤åˆ¶
+            {
+                if (miniEnoughSpace(fp) == true)        //ç³»ç»Ÿç©ºé—´è¶³å¤Ÿï¼Œå¼€å§‹å¤åˆ¶
+                {
+                    err_flag = miniCreateFile(dst, GetFileSize(fp), "w", &fDes);        //å†™æ–¹å¼æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+                    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶æˆåŠŸï¼Œç»§ç»­è¿›è¡Œå¤åˆ¶
+                    {
+                        int how_many_blocks = fDes->self->file_size / BLOCK_SIZE + 1;
+                        int i_blocks = 0;
 
-						COORD cr = csb.dwCursorPosition;
-						cr.X = 0;
-
-						CONSOLE_CURSOR_INFO cc;
-						GetConsoleCursorInfo(hStdout, &cc);
-						cc.bVisible = 0;
-						SetConsoleCursorInfo(hStdout, &cc);
-
-						BAR_INFO bi;
-						InitBar(&bi, csb.srWindow.Right, 0.0);
-						PrintBar(&bi);
-
-						int how_many_blocks = fDes->self->file_size / BLOCK_SIZE + 1;
-						int i_blocks = 0;
-
-						char buf[BLOCK_SIZE];
-						__int64 read, write;
-						do		//¸´ÖÆ
-						{
-							if(i_blocks % BAR_UPDATE == 0)
-							{
-								SetConsoleCursorPosition(hStdout, cr);
-								SetBarPos(&bi, 1.0 * i_blocks / how_many_blocks);
-								PrintBar(&bi);
-							}
-							read = fread(buf, 1, BLOCK_SIZE, fp);
-							err_ret = miniWriteFile(fDes, read, BLOCK_SIZE, buf, &write);
-							if(err_ret != ERR_SUCCESS)		//Ğ´Êı¾İ²»³É¹¦
-								break;
-							i_blocks++;
-						}while(read == BLOCK_SIZE);
-						SetConsoleCursorPosition(hStdout, cr);
-						SetBarPos(&bi, 1.0);
-						PrintBar(&bi);
-						cc.bVisible = 1;
-						SetConsoleCursorInfo(hStdout, &cc);
-						fclose(fp);		err_mid = miniCloseFile(fDes);
-						return err_ret;
-					}
-					else 
-						return err_flag;
-				}
-				else
-					return ERR_NOT_ENOUGH_DISK_SPACE;
-			}
-			else		//ÆäËû´íÎó£¬·µ»Ø×´Ì¬´úÂë
-				return err_flag;
+                        char buf[BLOCK_SIZE];
+                        long long read, write;
+                        do        //å¤åˆ¶
+                        {
+                            read = fread(buf, 1, BLOCK_SIZE, fp);
+                            err_ret = miniWriteFile(fDes, read, BLOCK_SIZE, buf, &write);
+                            if (err_ret != ERR_SUCCESS)        //å†™æ•°æ®ä¸æˆåŠŸ
+                                break;
+                            i_blocks++;
+                        } while (read == BLOCK_SIZE);
+                        fclose(fp);
+                        err_mid = miniCloseFile(fDes);
+                        return err_ret;
+                    } else
+                        return err_flag;
+                } else
+                    return ERR_NOT_ENOUGH_DISK_SPACE;
+            } else        //å…¶ä»–é”™è¯¯ï¼Œè¿”å›çŠ¶æ€ä»£ç 
+                return err_flag;
 		}
 	}
-	else
-	{
-		if(dst[1] == ':' && dst[2] == '\\')		//ÏµÍ³ÄÚÏòÏµÍ³Íâ¸´ÖÆ
-		{
-			ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
-			FILE_DESCRIPTOR * fDes;
-			err_flag = miniCreateFile(src, 0, "r", &fDes);		//´ò¿ªÔ­ÎÄ¼ş
-			if(err_flag != ERR_SUCCESS)		//´ò¿ªÔ­ÎÄ¼ş²»³É¹¦
-				return err_flag;
-			else		//´ò¿ªÔ­ÎÄ¼ş³É¹¦
-			{
-				FILE * fp = NULL;
-				fp = fopen(dst, "r");		//´ò¿ªÄ¿±êÎÄ¼ş
-				if(fp != NULL)		//´ò¿ªÔ­ÎÄ¼ş³É¹¦£¬¼´ÎÄ¼şÃû³åÍ»
-				{
-					printf("File exists!\n");
-					return ERR_SUCCESS;
-				}
-				else		//¿É½øÒ»²½½øĞĞ¸´ÖÆ
-				{
-					//´Ë´¦¼ÙÉèÏµÍ³Íâ¿Õ¼ä×ã¹»£¬¹Ê²»ÅĞ¶ÏÏµÍ³Íâ¿Õ¼äÊÇ·ñ×ã¹»
-					fp = fopen(dst, "wb");		//Ğ´·½Ê½´ò¿ªÄ¿±êÎÄ¼ş
-					if(fp != NULL)		//´ò¿ªÄ¿±êÎÄ¼ş³É¹¦£¬¼ÌĞø½øĞĞ¸´ÖÆ
-					{
-						hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-						CONSOLE_SCREEN_BUFFER_INFO csb;
-						GetConsoleScreenBufferInfo(hStdout, &csb);
+	else {
+        if (startsWith(OUT_FILE_PREFIX, dst))        //ç³»ç»Ÿå†…å‘ç³»ç»Ÿå¤–å¤åˆ¶
+        {
+            dst = dst + OUT_FILE_PREFIX_LEN;
+            ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+            FILE_DESCRIPTOR *fDes;
+            err_flag = miniCreateFile(src, 0, "r", &fDes);        //æ‰“å¼€åŸæ–‡ä»¶
+            if (err_flag != ERR_SUCCESS)        //æ‰“å¼€åŸæ–‡ä»¶ä¸æˆåŠŸ
+                return err_flag;
+            else        //æ‰“å¼€åŸæ–‡ä»¶æˆåŠŸ
+            {
+                FILE *fp = NULL;
+                fp = fopen(dst, "r");        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+                if (fp != NULL)        //æ‰“å¼€åŸæ–‡ä»¶æˆåŠŸï¼Œå³æ–‡ä»¶åå†²çª
+                {
+                    printf("File exists!\n");
+                    return ERR_SUCCESS;
+                } else        //å¯è¿›ä¸€æ­¥è¿›è¡Œå¤åˆ¶
+                {
+                    //æ­¤å¤„å‡è®¾ç³»ç»Ÿå¤–ç©ºé—´è¶³å¤Ÿï¼Œæ•…ä¸åˆ¤æ–­ç³»ç»Ÿå¤–ç©ºé—´æ˜¯å¦è¶³å¤Ÿ
+                    fp = fopen(dst, "wb");        //å†™æ–¹å¼æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+                    if (fp != NULL)        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶æˆåŠŸï¼Œç»§ç»­è¿›è¡Œå¤åˆ¶
+                    {
+                        int how_many_blocks = fDes->self->file_size / BLOCK_SIZE + 1;
+                        int i_blocks = 0;
 
-						COORD cr = csb.dwCursorPosition;
-						cr.X = 0;
+                        char buf[BLOCK_SIZE];
+                        long long read;
+                        do        //è¿›è¡Œå¤åˆ¶
+                        {
+                            err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
+                            if (err_ret == ERR_SUCCESS)
+                                fwrite(buf, 1, read, fp);
+                            else        //è¯»æ–‡ä»¶å¤±è´¥
+                                break;
+                            i_blocks++;
+                        } while (read == BLOCK_SIZE);
+                        fclose(fp);
+                        err_mid = miniCloseFile(fDes);
+                        return err_ret;
+                    } else
+                        return ERR_OTHER;
+                }
+            }
+        } else        //ç³»ç»Ÿå†…å‘ç³»ç»Ÿå†…å¤åˆ¶
+        {
+            ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+            FILE_DESCRIPTOR *fDes_src;
+            err_flag = miniCreateFile(src, 0, "r", &fDes_src);        //æ‰“å¼€åŸæ–‡ä»¶
+            if (err_flag != ERR_SUCCESS)        //æ‰“å¼€åŸæ–‡ä»¶ä¸æˆåŠŸ
+                return err_flag;
+            else        //æ‰“å¼€åŸæ–‡ä»¶æˆåŠŸ
+            {
+                FILE_DESCRIPTOR *fDes_dst;
+                err_flag = miniCreateFile(dst, 0, "r", &fDes_dst);        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+                if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶æˆåŠŸï¼Œåˆ™æ–‡ä»¶åå†²çª
+                {
+                    err_mid = miniCloseFile(fDes_dst);        //å…³é—­æ–‡ä»¶
+                    printf("File exists!\n");
+                    return ERR_SUCCESS;
+                }
+                if (err_flag == ERR_TYPE_MISMATCH)        //æ‰“å¼€çš„ç›®æ ‡æ–‡ä»¶ä¸ºç›®å½•ï¼Œåˆ™æ–‡ä»¶åå†²çª
+                {
+                    printf("\"%s\" is a directory. Cannot create file!\n", dst);
+                    return ERR_SUCCESS;
+                }
 
-						CONSOLE_CURSOR_INFO cc;
-						GetConsoleCursorInfo(hStdout, &cc);
-						cc.bVisible = 0;
-						SetConsoleCursorInfo(hStdout, &cc);
+                if (err_flag == ERR_NOT_FOUND)        //æ‰“å¼€çš„ç›®æ ‡æ–‡ä»¶æœªæ‰¾åˆ°ï¼Œå¯è¿›ä¸€æ­¥è¿›è¡Œå¤åˆ¶
+                {
+                    if (miniEnoughSpace(fDes_src) == true)        //ç³»ç»Ÿç©ºé—´è¶³å¤Ÿï¼Œå¼€å§‹å¤åˆ¶
+                    {
+                        err_flag = miniCreateFile(dst, fDes_src->self->file_size, "w", &fDes_dst);        //å†™æ–¹å¼æ‰“å¼€ç›®æ ‡æ–‡ä»¶
+                        if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®æ ‡æ–‡ä»¶æˆåŠŸï¼Œç»§ç»­è¿›è¡Œå¤åˆ¶
+                        {
+                            int how_many_blocks = fDes_dst->self->file_size / BLOCK_SIZE + 1;
+                            int i_blocks = 0;
 
-						BAR_INFO bi;
-						InitBar(&bi, csb.srWindow.Right, 0.0);
-						PrintBar(&bi);
-
-						int how_many_blocks = fDes->self->file_size / BLOCK_SIZE + 1;
-						int i_blocks = 0;
-
-						char buf[BLOCK_SIZE];
-						__int64 read;
-						do		//½øĞĞ¸´ÖÆ
-						{
-							if(i_blocks % BAR_UPDATE == 0)
-							{
-								SetConsoleCursorPosition(hStdout, cr);
-								SetBarPos(&bi, 1.0 * i_blocks / how_many_blocks);
-								PrintBar(&bi);
-							}
-							err_ret = miniReadFile(fDes, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
-							if(err_ret == ERR_SUCCESS)
-								fwrite(buf, 1, read, fp);
-							else		//¶ÁÎÄ¼şÊ§°Ü
-								break;
-							i_blocks++;
-						}while(read == BLOCK_SIZE);
-						SetConsoleCursorPosition(hStdout, cr);
-						SetBarPos(&bi, 1.0);
-						PrintBar(&bi);
-						cc.bVisible = 1;
-						SetConsoleCursorInfo(hStdout, &cc);
-						fclose(fp);		err_mid = miniCloseFile(fDes);
-						return err_ret;
-					}
-					else
-						return ERR_OTHER;
-				}
-			}
-		}
-		else		//ÏµÍ³ÄÚÏòÏµÍ³ÄÚ¸´ÖÆ
-		{
-			ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
-			FILE_DESCRIPTOR * fDes_src;
-			err_flag = miniCreateFile(src, 0, "r", &fDes_src);		//´ò¿ªÔ­ÎÄ¼ş
-			if(err_flag != ERR_SUCCESS)		//´ò¿ªÔ­ÎÄ¼ş²»³É¹¦
-				return err_flag;
-			else		//´ò¿ªÔ­ÎÄ¼ş³É¹¦
-			{
-				FILE_DESCRIPTOR * fDes_dst;
-				err_flag = miniCreateFile(dst, 0, "r", &fDes_dst);		//´ò¿ªÄ¿±êÎÄ¼ş
-				if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿±êÎÄ¼ş³É¹¦£¬ÔòÎÄ¼şÃû³åÍ»
-				{
-					err_mid = miniCloseFile(fDes_dst);		//¹Ø±ÕÎÄ¼ş
-					printf("File exists!\n");
-					return ERR_SUCCESS;
-				}
-				if(err_flag == ERR_TYPE_MISMATCH)		//´ò¿ªµÄÄ¿±êÎÄ¼şÎªÄ¿Â¼£¬ÔòÎÄ¼şÃû³åÍ»
-				{
-					printf("\"%s\" is a directory. Cannot create file!\n", dst);
-					return ERR_SUCCESS;
-				}
-
-				if(err_flag == ERR_NOT_FOUND)		//´ò¿ªµÄÄ¿±êÎÄ¼şÎ´ÕÒµ½£¬¿É½øÒ»²½½øĞĞ¸´ÖÆ
-				{
-					if(miniEnoughSpace(fDes_src) == true)		//ÏµÍ³¿Õ¼ä×ã¹»£¬¿ªÊ¼¸´ÖÆ
-					{
-						err_flag = miniCreateFile(dst, fDes_src->self->file_size, "w", &fDes_dst);		//Ğ´·½Ê½´ò¿ªÄ¿±êÎÄ¼ş
-						if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿±êÎÄ¼ş³É¹¦£¬¼ÌĞø½øĞĞ¸´ÖÆ
-						{
-							hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-							CONSOLE_SCREEN_BUFFER_INFO csb;
-							GetConsoleScreenBufferInfo(hStdout, &csb);
-
-							COORD cr = csb.dwCursorPosition;
-							cr.X = 0;
-
-							CONSOLE_CURSOR_INFO cc;
-							GetConsoleCursorInfo(hStdout, &cc);
-							cc.bVisible = 0;
-							SetConsoleCursorInfo(hStdout, &cc);
-
-							BAR_INFO bi;
-							InitBar(&bi, csb.srWindow.Right, 0.0);
-							PrintBar(&bi);
-
-							int how_many_blocks = fDes_dst->self->file_size / BLOCK_SIZE + 1;
-							int i_blocks = 0;
-
-							char buf[BLOCK_SIZE];
-							__int64 read, write;
-							do		//¸´ÖÆ
-							{
-								if(i_blocks % BAR_UPDATE == 0)
-								{
-									SetConsoleCursorPosition(hStdout, cr);
-									SetBarPos(&bi, 1.0 * i_blocks / how_many_blocks);
-									PrintBar(&bi);
-								}
-								err_ret = miniReadFile(fDes_src, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
-								if(err_ret == ERR_SUCCESS)
-								{
-									err_ret = miniWriteFile(fDes_dst, read, BLOCK_SIZE, buf, &write);
-									if(err_ret != ERR_SUCCESS)		//Ğ´Êı¾İ²»³É¹¦
-										break;
-								}
-								else		//¶ÁÊı¾İ²»³É¹¦
-									break;
-								i_blocks++;
-							}while(read == BLOCK_SIZE);
-							SetConsoleCursorPosition(hStdout, cr);
-							SetBarPos(&bi, 1.0);
-							PrintBar(&bi);
-							cc.bVisible = 1;
-							SetConsoleCursorInfo(hStdout, &cc);
-							err_mid = miniCloseFile(fDes_src);		err_mid = miniCloseFile(fDes_dst);
-							return err_ret;
-						}
-						else 
-							return err_flag;
-					}
-					else
-						return ERR_NOT_ENOUGH_DISK_SPACE;
-				}
-				else		//ÆäËû´íÎó£¬·µ»Ø×´Ì¬´úÂë
-					return err_flag;
+                            char buf[BLOCK_SIZE];
+                            long long read, write;
+                            do        //å¤åˆ¶
+                            {
+                                err_ret = miniReadFile(fDes_src, BLOCK_SIZE, BLOCK_SIZE, buf, &read);
+                                if (err_ret == ERR_SUCCESS) {
+                                    err_ret = miniWriteFile(fDes_dst, read, BLOCK_SIZE, buf, &write);
+                                    if (err_ret != ERR_SUCCESS)        //å†™æ•°æ®ä¸æˆåŠŸ
+                                        break;
+                                } else        //è¯»æ•°æ®ä¸æˆåŠŸ
+                                    break;
+                                i_blocks++;
+                            } while (read == BLOCK_SIZE);
+                            err_mid = miniCloseFile(fDes_src);
+                            err_mid = miniCloseFile(fDes_dst);
+                            return err_ret;
+                        } else
+                            return err_flag;
+                    } else
+                        return ERR_NOT_ENOUGH_DISK_SPACE;
+                } else        //å…¶ä»–é”™è¯¯ï¼Œè¿”å›çŠ¶æ€ä»£ç 
+                    return err_flag;
 			}
 		}
 	}
 }
 
 /*
-* º¯ÊıÃû£ºdl
-*¹¦ÄÜ£ºÉ¾³ıÖ¸¶¨ÎÄ¼ş¡£
-* ²ÎÊı£º×Ö·û´®¡£´æ´¢ÎÄ¼şÃû£¬Îª¾ø¶ÔÂ·¾¶»òÏà¶ÔÂ·¾¶¼ÓÎÄ¼şÃû£¬Òì»òÖ±½ÓÎªÎÄ¼şÃû£¨Ä¬ÈÏµ±Ç°Ä¿Â¼£©¡£
-* ·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šdl
+*åŠŸèƒ½ï¼šåˆ é™¤æŒ‡å®šæ–‡ä»¶ã€‚
+* å‚æ•°ï¼šå­—ç¬¦ä¸²ã€‚å­˜å‚¨æ–‡ä»¶åï¼Œä¸ºç»å¯¹è·¯å¾„æˆ–ç›¸å¯¹è·¯å¾„åŠ æ–‡ä»¶åï¼Œå¼‚æˆ–ç›´æ¥ä¸ºæ–‡ä»¶åï¼ˆé»˜è®¤å½“å‰ç›®å½•ï¼‰ã€‚
+* è¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE dl(char *file_name)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE dl(char *file_name) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
 
-	FILE_DESCRIPTOR * fDes;
-	err_flag = miniCreateFile(file_name, 0, "r", &fDes);		//´ò¿ªÎÄ¼ş
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÎÄ¼ş³É¹¦
-	{
-		err_ret = miniDeleteFile(fDes);		//É¾³ıÎÄ¼ş
-		err_mid = miniCloseFile(fDes);		//¹Ø±ÕÎÄ¼ş
-		return err_ret;		//·µ»Ø×´Ì¬´úÂë
-	}
-	else		//´ò¿ªÎÄ¼şÊ§°Ü
-	{
-		if(err_flag = ERR_TYPE_MISMATCH)		//Â·¾¶ËùÖ¸ÎªÒ»¸öÄ¿Â¼
-		{
-			DIRECTORY_DESCRIPTOR * dDes;
-			err_flag = miniCreateDirectory(file_name, "r", &dDes);	//´ò¿ªÄ¿Â¼
-			if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿Â¼³É¹¦
-			{
-				err_ret = miniDeleteDirectory(dDes);	//É¾³ıÄ¿Â¼
-				err_mid = miniCloseDirectory(dDes);		//¹Ø±ÕÄ¿Â¼
-				return err_ret;		//·µ»Ø×´Ì¬´úÂë
-			}
-			else
-				return err_flag;	//´ò¿ªÄ¿Â¼Ê§°Ü
-		}
-		else
-			return err_flag;	//ÆäËû´íÎó
-	}	
+    FILE_DESCRIPTOR *fDes;
+    err_flag = miniCreateFile(file_name, 0, "r", &fDes);        //æ‰“å¼€æ–‡ä»¶
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€æ–‡ä»¶æˆåŠŸ
+    {
+        err_ret = miniDeleteFile(fDes);        //åˆ é™¤æ–‡ä»¶
+        err_mid = miniCloseFile(fDes);        //å…³é—­æ–‡ä»¶
+        return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+    } else        //æ‰“å¼€æ–‡ä»¶å¤±è´¥
+    {
+        if (err_flag == ERR_TYPE_MISMATCH)        //è·¯å¾„æ‰€æŒ‡ä¸ºä¸€ä¸ªç›®å½•
+        {
+            DIRECTORY_DESCRIPTOR *dDes;
+            err_flag = miniCreateDirectory(file_name, "r", &dDes);    //æ‰“å¼€ç›®å½•
+            if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®å½•æˆåŠŸ
+            {
+                err_ret = miniDeleteDirectory(dDes);    //åˆ é™¤ç›®å½•
+                err_mid = miniCloseDirectory(dDes);        //å…³é—­ç›®å½•
+                return err_ret;        //è¿”å›çŠ¶æ€ä»£ç 
+            } else
+                return err_flag;    //æ‰“å¼€ç›®å½•å¤±è´¥
+        } else
+            return err_flag;    //å…¶ä»–é”™è¯¯
+    }
 }
 
 /*
-* º¯ÊıÃû£ºGetFileSize
-*¹¦ÄÜ£º»ñµÃÎÄ¼ş£¨ÏµÍ³Íâ£©´óĞ¡¡£
-* ²ÎÊı£ºÎÄ¼şÃèÊö·û¡£
-* ·µ»ØÖµ£º__int64£¬±íÊ¾ÎÄ¼ş´óĞ¡£¬µ¥Î»£º×Ö½Ú¡£
+* å‡½æ•°åï¼šGetFileSize
+*åŠŸèƒ½ï¼šè·å¾—æ–‡ä»¶ï¼ˆç³»ç»Ÿå¤–ï¼‰å¤§å°ã€‚
+* å‚æ•°ï¼šæ–‡ä»¶æè¿°ç¬¦ã€‚
+* è¿”å›å€¼ï¼šlong longï¼Œè¡¨ç¤ºæ–‡ä»¶å¤§å°ï¼Œå•ä½ï¼šå­—èŠ‚ã€‚
 */
-__int64 GetFileSize(FILE *fp)
-{
-	__int64 size = 0;
-	_fseeki64(fp, 0, SEEK_END);
-	size = _ftelli64(fp);
-	fseek(fp, 0, SEEK_SET);
+long long GetFileSize(FILE *fp) {
+    long long size = 0;
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
-	// ·ÀÖ¹¿ÕÎÄ¼ş±»ÎóÈÏÎªÄ¿Â¼
-	if(size == 0)
-		return 1;
-	return size;
+    // é˜²æ­¢ç©ºæ–‡ä»¶è¢«è¯¯è®¤ä¸ºç›®å½•
+    if (size == 0)
+        return 1;
+    return size;
 }
 
 /*
-* º¯ÊıÃû£ºWildcardMatches
-*¹¦ÄÜ£ºÍ¨Åä·ûÆ¥Åä¡£
-* ²ÎÊı£ºÁ½¸ö×Ö·û´®£¬µÚÒ»¸öº°º¬ÓĞÍ¨Åä·û£¬µÚ¶ş¸öÎª´ıÆ¥Åä×Ö·û´®¡£
-* ·µ»ØÖµ£ºÆ¥Åä½á¹û¡£
+* å‡½æ•°åï¼šWildcardMatches
+*åŠŸèƒ½ï¼šé€šé…ç¬¦åŒ¹é…ã€‚
+* å‚æ•°ï¼šä¸¤ä¸ªå­—ç¬¦ä¸²ï¼Œç¬¬ä¸€ä¸ªå–Šå«æœ‰é€šé…ç¬¦ï¼Œç¬¬äºŒä¸ªä¸ºå¾…åŒ¹é…å­—ç¬¦ä¸²ã€‚
+* è¿”å›å€¼ï¼šåŒ¹é…ç»“æœã€‚
 */
 int WildcardMatches(char *wildcard, char *str) 
-{  
-    for (  ; *wildcard;  ++wildcard, ++str)	//Ñ­»·´¦Àí
-	{
-		if (*wildcard == '*')    //Èç¹û wildcard µÄµ±Ç°×Ö·ûÊÇ '*'Ê±´¦Àí´úÂë
-		{
-			while(*wildcard=='*') 
-			{
-				wildcard++;
-			}
-	    for (; *str; ++str)
-			{ 
-		if (WildcardMatches(wildcard, str))  
-		    return 1;  
-			}
-	    return *wildcard == '\0';  
-	}
-		else	 //Èç¹û wildcard µÄµ±Ç°×Ö·û·Ç '*'Ê±´¦Àí´úÂë
-		{
-			if ((*wildcard != '?') && (*wildcard != *str))    
-		return 0;  
-		}
-	}
+{
+    for (; *wildcard; ++wildcard, ++str)    //å¾ªç¯å¤„ç†
+    {
+        if (*wildcard == '*')    //å¦‚æœ wildcard çš„å½“å‰å­—ç¬¦æ˜¯ '*'æ—¶å¤„ç†ä»£ç 
+        {
+            while (*wildcard == '*') {
+                wildcard++;
+            }
+            for (; *str; ++str) {
+                if (WildcardMatches(wildcard, str))
+                    return 1;
+            }
+            return *wildcard == '\0';
+        } else     //å¦‚æœ wildcard çš„å½“å‰å­—ç¬¦é '*'æ—¶å¤„ç†ä»£ç 
+        {
+            if ((*wildcard != '?') && (*wildcard != *str))
+                return 0;
+        }
+    }
 
-    return *str == '\0';	//·µ»ØÆ¥Åä½á¹û
+    return *str == '\0';    //è¿”å›åŒ¹é…ç»“æœ
 }
 
 /*
-* º¯ÊıÃû£ºatt_print
-*¹¦ÄÜ£ºÊä³öÎÄ¼ş/Ä¿Â¼ÊôĞÔ¡£
-* ²ÎÊı£ºÒ»¸ö×Ö·û´®£¬ÎªÒªÊä³öµÄÎÄ¼ş/Ä¿Â¼µÄ¾ø¶Ô»òÏà¶ÔÂ·¾¶¡£
-* ·µ»ØÖµ£º·µ»ØÖµ£ºERROR_CODE£¬±íÊ¾Ö´ĞĞ½á¹û¡£
+* å‡½æ•°åï¼šatt_print
+*åŠŸèƒ½ï¼šè¾“å‡ºæ–‡ä»¶/ç›®å½•å±æ€§ã€‚
+* å‚æ•°ï¼šä¸€ä¸ªå­—ç¬¦ä¸²ï¼Œä¸ºè¦è¾“å‡ºçš„æ–‡ä»¶/ç›®å½•çš„ç»å¯¹æˆ–ç›¸å¯¹è·¯å¾„ã€‚
+* è¿”å›å€¼ï¼šè¿”å›å€¼ï¼šERROR_CODEï¼Œè¡¨ç¤ºæ‰§è¡Œç»“æœã€‚
 */
-ERROR_CODE att_print(char *file_name)
-{
-	ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
+ERROR_CODE att_print(char *file_name) {
+    ERROR_CODE err_ret = ERR_OTHER, err_mid = ERR_OTHER, err_flag = ERR_OTHER;
 
-	FILE_DESCRIPTOR * fDes;
-	err_flag = miniCreateFile(file_name, 0, "r", &fDes);		//´ò¿ªÎÄ¼ş
-	
-	if(err_flag == ERR_SUCCESS)		//´ò¿ªÎÄ¼ş³É¹¦
-	{
-		printf("Name:			%s\n",fDes->self->name);		//Êä³öÊôĞÔ
-		printf("Size:			%lld Bytes\n",fDes->self->file_size);
-		printf("File or Dir:		%s\n",(fDes->self->is_file ? "File" : "Dir"));
-		struct tm *t_c = _localtime64(&fDes->self->create_time);
-		printf("Create time:		%d/%d/%d  %02d:%02d:%02d\n",t_c->tm_year+1900, t_c->tm_mon+1, t_c->tm_mday,  t_c->tm_hour, t_c->tm_min, t_c->tm_sec);
-		struct tm *t_m = _localtime64(&fDes->self->modified_time);
-		printf("Modified time:		%d/%d/%d  %02d:%02d:%02d\n",t_m->tm_year+1900, t_m->tm_mon+1, t_m->tm_mday,  t_m->tm_hour, t_m->tm_min, t_m->tm_sec);
-		struct tm *t_a = _localtime64(&fDes->self->access_time);
-		printf("Access time:		%d/%d/%d  %02d:%02d:%02d\n",t_a->tm_year+1900, t_a->tm_mon+1, t_a->tm_mday,  t_a->tm_hour, t_a->tm_min, t_a->tm_sec);		
-		
-		err_mid = miniCloseFile(fDes);
-		return ERR_SUCCESS;
-	}
+    FILE_DESCRIPTOR *fDes;
+    err_flag = miniCreateFile(file_name, 0, "r", &fDes);        //æ‰“å¼€æ–‡ä»¶
 
-	if(err_flag == ERR_TYPE_MISMATCH)		//´ò¿ªµÄÎªÄ¿Â¼
-	{
-		DIRECTORY_DESCRIPTOR * dDes;
-		err_flag = miniCreateDirectory(file_name, "r", &dDes);	//´ò¿ªÄ¿Â¼
-		if(err_flag == ERR_SUCCESS)		//´ò¿ªÄ¿Â¼³É¹¦
-		{
-			printf("Name:			%s\n",dDes->self->name);		//Êä³öÊôĞÔ
-			printf("Size:			%lld Bytes\n",dDes->self->file_size);
-			printf("File or Dir:		%s\n",(dDes->self->is_file ? "File" : "Dir"));
-			struct tm *t_c = _localtime64(&dDes->self->create_time);
-			printf("Create time:		%d/%d/%d  %02d:%02d:%02d\n",t_c->tm_year+1900, t_c->tm_mon+1, t_c->tm_mday,  t_c->tm_hour, t_c->tm_min, t_c->tm_sec);
-			struct tm *t_m = _localtime64(&dDes->self->modified_time);
-			printf("Modified time:		%d/%d/%d  %02d:%02d:%02d\n",t_m->tm_year+1900, t_m->tm_mon+1, t_m->tm_mday,  t_m->tm_hour, t_m->tm_min, t_m->tm_sec);
-			struct tm *t_a = _localtime64(&dDes->self->access_time);		
-			printf("Access time:		%d/%d/%d  %02d:%02d:%02d\n",t_a->tm_year+1900, t_a->tm_mon+1, t_a->tm_mday,  t_a->tm_hour, t_a->tm_min, t_a->tm_sec);
+    if (err_flag == ERR_SUCCESS)        //æ‰“å¼€æ–‡ä»¶æˆåŠŸ
+    {
+        printf("Name:			%s\n", fDes->self->name);        //è¾“å‡ºå±æ€§
+        printf("Size:			%lld Bytes\n", fDes->self->file_size);
+        printf("File or Dir:		%s\n", (fDes->self->is_file ? "File" : "Dir"));
+        struct tm *t_c = localtime(&fDes->self->create_time);
+        printf("Create time:		%d/%d/%d  %02d:%02d:%02d\n", t_c->tm_year + 1900, t_c->tm_mon + 1, t_c->tm_mday,
+               t_c->tm_hour, t_c->tm_min, t_c->tm_sec);
+        struct tm *t_m = localtime(&fDes->self->modified_time);
+        printf("Modified time:		%d/%d/%d  %02d:%02d:%02d\n", t_m->tm_year + 1900, t_m->tm_mon + 1, t_m->tm_mday,
+               t_m->tm_hour, t_m->tm_min, t_m->tm_sec);
+        struct tm *t_a = localtime(&fDes->self->access_time);
+        printf("Access time:		%d/%d/%d  %02d:%02d:%02d\n", t_a->tm_year + 1900, t_a->tm_mon + 1, t_a->tm_mday,
+               t_a->tm_hour, t_a->tm_min, t_a->tm_sec);
 
-			err_mid = miniCloseDirectory(dDes);
-			return ERR_SUCCESS;
-		}
+        err_mid = miniCloseFile(fDes);
+        return ERR_SUCCESS;
+    }
+
+    if (err_flag == ERR_TYPE_MISMATCH)        //æ‰“å¼€çš„ä¸ºç›®å½•
+    {
+        DIRECTORY_DESCRIPTOR *dDes;
+        err_flag = miniCreateDirectory(file_name, "r", &dDes);    //æ‰“å¼€ç›®å½•
+        if (err_flag == ERR_SUCCESS)        //æ‰“å¼€ç›®å½•æˆåŠŸ
+        {
+            printf("Name:			%s\n", dDes->self->name);        //è¾“å‡ºå±æ€§
+            printf("Size:			%lld Bytes\n", dDes->self->file_size);
+            printf("File or Dir:		%s\n", (dDes->self->is_file ? "File" : "Dir"));
+            struct tm *t_c = localtime(&dDes->self->create_time);
+            printf("Create time:		%d/%d/%d  %02d:%02d:%02d\n", t_c->tm_year + 1900, t_c->tm_mon + 1, t_c->tm_mday,
+                   t_c->tm_hour, t_c->tm_min, t_c->tm_sec);
+            struct tm *t_m = localtime(&dDes->self->modified_time);
+            printf("Modified time:		%d/%d/%d  %02d:%02d:%02d\n", t_m->tm_year + 1900, t_m->tm_mon + 1,
+                   t_m->tm_mday, t_m->tm_hour, t_m->tm_min, t_m->tm_sec);
+            struct tm *t_a = localtime(&dDes->self->access_time);
+            printf("Access time:		%d/%d/%d  %02d:%02d:%02d\n", t_a->tm_year + 1900, t_a->tm_mon + 1, t_a->tm_mday,
+                   t_a->tm_hour, t_a->tm_min, t_a->tm_sec);
+
+            err_mid = miniCloseDirectory(dDes);
+            return ERR_SUCCESS;
+        }
 		else
 			return err_flag;
 	}
@@ -1013,22 +779,21 @@ ERROR_CODE att_print(char *file_name)
 	return err_flag;
 }
 
-// width: ´Ó[µ½%µÄ×Ü³¤¶È
-void InitBar(BAR_INFO *bi, int width, float init_ratio)
-{
-	memset(bi->bar, 0, sizeof(bi->bar));
-	memset(bi->bar, ' ', width);
-	bi->progress_chr = '=';
-	bi->arrow_chr = '>';
-	// 9°üÀ¨£º'[', '>', ']', " XX.X%"
-	bi->width = width - 9;
-	bi->ratio = init_ratio;
-	bi->str_ratio_offset = bi->width + 4;
-	bi->last_pos = 0;
+// width: ä»[åˆ°%çš„æ€»é•¿åº¦
+void InitBar(BAR_INFO *bi, int width, float init_ratio) {
+    memset(bi->bar, 0, sizeof(bi->bar));
+    memset(bi->bar, ' ', width);
+    bi->progress_chr = '=';
+    bi->arrow_chr = '>';
+    // 9åŒ…æ‹¬ï¼š'[', '>', ']', " XX.X%"
+    bi->width = width - 9;
+    bi->ratio = init_ratio;
+    bi->str_ratio_offset = bi->width + 4;
+    bi->last_pos = 0;
 
-	bi->bar[0] = '[';
-	bi->bar[bi->width + 2] = ']';
-	SetBarPos(bi, init_ratio);
+    bi->bar[0] = '[';
+    bi->bar[bi->width + 2] = ']';
+    SetBarPos(bi, init_ratio);
 }
 
 void SetBarPos(BAR_INFO *bi, float new_ratio)

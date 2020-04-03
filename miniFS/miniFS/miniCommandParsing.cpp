@@ -5,111 +5,101 @@
 #include "miniCommandParsing.h"
 
 /*
-* º¯ÊıÃû£ºParsingCommand
-*¹¦ÄÜ£º¶ÁÈëÃüÁî£¬ÃüÁîºÏ·¨ĞÔ¼ì²é£¨ÃüÁî²»´æÔÚ£¬²ÎÊı²»·û£¬»º³åÇøÒç³öµÈ£©£¬ÃüÁîÀàĞÍ½âÎö£¬ÃüÁî²ÎÊı½âÎö
-* ²ÎÊı£º¿Õ
-* ·µ»ØÖµ£ºCmd£¬ÓÃÓÚ´æ´¢ÃüÁî½âÎö½á¹û
+* å‡½æ•°åï¼šParsingCommand
+*åŠŸèƒ½ï¼šè¯»å…¥å‘½ä»¤ï¼Œå‘½ä»¤åˆæ³•æ€§æ£€æŸ¥ï¼ˆå‘½ä»¤ä¸å­˜åœ¨ï¼Œå‚æ•°ä¸ç¬¦ï¼Œç¼“å†²åŒºæº¢å‡ºç­‰ï¼‰ï¼Œå‘½ä»¤ç±»å‹è§£æï¼Œå‘½ä»¤å‚æ•°è§£æ
+* å‚æ•°ï¼šç©º
+* è¿”å›å€¼ï¼šCmdï¼Œç”¨äºå­˜å‚¨å‘½ä»¤è§£æç»“æœ
 */
-Cmd ParsingCommand( )
-{
+Cmd ParsingCommand( ) {
 	char str[520];
 	Cmd cmd;
 
-	memset(str,'#',520);		//³õÊ¼»¯Êı×é
+	memset(str, '#', 520);        //åˆå§‹åŒ–æ•°ç»„
 
-	for( ; ; )		//¶ÁÈëÃüÁîÇ°ÃæµÄ¿Õ¸ñ
+	for (;;)        //è¯»å…¥å‘½ä»¤å‰é¢çš„ç©ºæ ¼
 	{
 		str[0] = getchar();
-		if(str[0] == ' ')
+		if (str[0] == ' ')
 			continue;
 		else
 			break;
 	}
-	fgets(&str[1], 517, stdin);	//¶ÁÈëÃüÁî
-	int len = strlen(str);		//¼ÆËãÃüÁî³¤¶È
+	fgets(&str[1], 517, stdin);    //è¯»å…¥å‘½ä»¤
+	int len = strlen(str);        //è®¡ç®—å‘½ä»¤é•¿åº¦
 
-	/***************************»º³åÇøÒç³ö*******************************/
-	if(len == 517 && str[516] != '\n')		//»º³åÇøÒç³ö£¬·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_BUFFER_OVERFLOW
+	/***************************ç¼“å†²åŒºæº¢å‡º*******************************/
+	if (len == 517 && str[516] != '\n')        //ç¼“å†²åŒºæº¢å‡ºï¼Œè¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_BUFFER_OVERFLOW
 	{
 		fflush(stdin);
 		cmd.type = TYPE_BUFFER_OVERFLOW;
 		return cmd;
 	}
-	if(len != 1)
-		str[len-1] = '\0';
-	
-	/***************************½ö¶ÁÈë»»ĞĞ·û*******************************/
-	if(strcmp(str, "\n") == 0)
-	{
+	if (len != 1)
+		str[len - 1] = '\0';
+
+	/***************************ä»…è¯»å…¥æ¢è¡Œç¬¦*******************************/
+	if (strcmp(str, "\n") == 0) {
 		cmd.type = TYPE_NO;
 		return cmd;
 	}
 
-	/***************************ÃüÁî£ºÍË³öÏµÍ³*******************************/
-	if(strcmp(str, "close") == 0 || memcmp(str,"close ",6) == 0)
-	{
-		if(str[5] == '\0')	//·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_CLOSE
+	/***************************å‘½ä»¤ï¼šé€€å‡ºç³»ç»Ÿ*******************************/
+	if (strcmp(str, "close") == 0 || memcmp(str, "close ", 6) == 0) {
+		if (str[5] == '\0')    //è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_CLOSE
 		{
 			cmd.type = TYPE_CLOSE;
 			return cmd;
-		}
-		else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+		} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 	}
 
-	/***************************ÇåÆÁÃüÁî*******************************/
-	if(strcmp(str, "cls") == 0 || memcmp(str,"cls ",4) == 0)
-	{
-		if(str[3] == '\0')	//·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_CLS
+	/***************************æ¸…å±å‘½ä»¤*******************************/
+	if (strcmp(str, "cls") == 0 || memcmp(str, "cls ", 4) == 0) {
+		if (str[3] == '\0')    //è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_CLS
 		{
 			cmd.type = TYPE_CLS;
 			return cmd;
-		}
-		else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+		} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 	}
 
-	/***************************ÇåÆÁÃüÁî*******************************/
-	if(strcmp(str, "sys") == 0 || memcmp(str,"sys ",4) == 0)
-	{
-		if(str[3] == '\0')	//·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_SYS
+	/***************************æ¸…å±å‘½ä»¤*******************************/
+	if (strcmp(str, "sys") == 0 || memcmp(str, "sys ", 4) == 0) {
+		if (str[3] == '\0')    //è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_SYS
 		{
 			cmd.type = TYPE_SYS;
 			return cmd;
-		}
-		else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+		} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 	}
 
-	/***************************ÃüÁî£ºÏÔÊ¾°ïÖúĞÅÏ¢*******************************/
-	if(strcmp(str,"help") == 0 ||  memcmp(str,"help ",5) == 0)
-	{
-		if(str[4] == '\0')	//ÎŞ²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_HEIP
+	/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºå¸®åŠ©ä¿¡æ¯*******************************/
+	if (strcmp(str, "help") == 0 || memcmp(str, "help ", 5) == 0) {
+		if (str[4] == '\0')    //æ— å‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_HEIP
 		{
-			cmd.flag = 0;		cmd.type = TYPE_HEIP;
+			cmd.flag = 0;
+			cmd.type = TYPE_HEIP;
 			return cmd;
-		}
-		else
-		{
+		} else {
 			int count = 0;
-			for(int i=5; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 5)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_HEIP
+			for (int i = 5; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 5)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_HEIP
 			{
-				strncpy(cmd.para1, &str[5], len-5);
-				cmd.flag = 1;		cmd.type = TYPE_HEIP;
+				strncpy(cmd.para1, &str[5], len - 5);
+				cmd.flag = 1;
+				cmd.type = TYPE_HEIP;
 				return cmd;
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -117,64 +107,56 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£º¸ñÊ½»¯ÏµÍ³*******************************/
-	if(strcmp(str, "fmt") == 0 || memcmp(str,"fmt ",4) == 0)
-	{
-		if(str[3] == '\0')	//·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_FMT
+	/***************************å‘½ä»¤ï¼šæ ¼å¼åŒ–ç³»ç»Ÿ*******************************/
+	if (strcmp(str, "fmt") == 0 || memcmp(str, "fmt ", 4) == 0) {
+		if (str[3] == '\0')    //è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_FMT
 		{
 			cmd.type = TYPE_FMT;
 			return cmd;
-		}
-		else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+		} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 	}
 
-	/***************************ÃüÁî£ºÓÅ»¯´æ´¢¿Õ¼ä*******************************/
-	if(strcmp(str, "opt") == 0 || memcmp(str,"opt ",4) == 0)
-	{
-		if(str[3] == '\0')	//·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_OPT
+	/***************************å‘½ä»¤ï¼šä¼˜åŒ–å­˜å‚¨ç©ºé—´*******************************/
+	if (strcmp(str, "opt") == 0 || memcmp(str, "opt ", 4) == 0) {
+		if (str[3] == '\0')    //è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_OPT
 		{
 			cmd.type = TYPE_OPT;
 			return cmd;
-		}
-		else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+		} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 	}
 
-	/***************************ÃüÁî£º½¨Á¢Ä¿Â¼*******************************/
-	if(strcmp(str, "mkdir") == 0 || memcmp(str,"mkdir ",6) == 0)
-	{
-		if(str[5] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šå»ºç«‹ç›®å½•*******************************/
+	if (strcmp(str, "mkdir") == 0 || memcmp(str, "mkdir ", 6) == 0) {
+		if (str[5] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
-			cmd.flag = 0;	cmd.type = TYPE_INVALID_PARAMETER;
+			cmd.flag = 0;
+			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
-		}
-		else
-		{
+		} else {
 			int count = 0;
-			for(int i=6; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 6)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_MKDIR
+			for (int i = 6; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 6)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_MKDIR
 			{
-				strncpy(cmd.para1, &str[6], len-6);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_MKDIR;
+				strncpy(cmd.para1, &str[6], len - 6);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_MKDIR;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -182,34 +164,29 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£ºÇĞ»»Ä¿Â¼*******************************/
-	if(strcmp(str, "cd") == 0 || memcmp(str,"cd ",3) == 0)
-	{
-		if(str[2] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šåˆ‡æ¢ç›®å½•*******************************/
+	if (strcmp(str, "cd") == 0 || memcmp(str, "cd ", 3) == 0) {
+		if (str[2] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
-		}
-		else
-		{
+		} else {
 			int count = 0;
-			for(int i=3; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 3)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_CD
+			for (int i = 3; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 3)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_CD
 			{
-				strncpy(cmd.para1, &str[3], len-3);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_CD;
+				strncpy(cmd.para1, &str[3], len - 3);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_CD;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -217,34 +194,30 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£ºÏÔÊ¾Ä¿Â¼*******************************/
-	if(strcmp(str, "dr") == 0 || memcmp(str,"dr ",3) == 0)
-	{
-		if(str[2] == '\0')	//ÎŞ²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_DR
+	/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºç›®å½•*******************************/
+	if (strcmp(str, "dr") == 0 || memcmp(str, "dr ", 3) == 0) {
+		if (str[2] == '\0')    //æ— å‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_DR
 		{
-			cmd.flag = 0;	cmd.type = TYPE_DR;
+			cmd.flag = 0;
+			cmd.type = TYPE_DR;
 			return cmd;
-		}
-		else
-		{
+		} else {
 			int count = 0;
-			for(int i=3; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 3)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_DR
+			for (int i = 3; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 3)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_DR
 			{
-				strncpy(cmd.para1, &str[3], len-3);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_DR;
+				strncpy(cmd.para1, &str[3], len - 3);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_DR;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -252,33 +225,30 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£ºÏÔÊ¾×ÓÄ¿Â¼/ÎÄ¼şÊôĞÔ*******************************/
-	if(strcmp(str, "att") == 0 || memcmp(str,"att ",4) == 0)
-	{
-		if(str[3] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºå­ç›®å½•/æ–‡ä»¶å±æ€§*******************************/
+	if (strcmp(str, "att") == 0 || memcmp(str, "att ", 4) == 0) {
+		if (str[3] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 		{
 			int count = 0;
-			for(int i=4; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 4)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_ATT
+			for (int i = 4; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 4)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_ATT
 			{
-				strncpy(cmd.para1, &str[4], len-4);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_ATT;
+				strncpy(cmd.para1, &str[4], len - 4);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_ATT;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -286,33 +256,30 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£ºÏÔÊ¾ÎÄ¼şÄÚÈİ*******************************/
-	if(strcmp(str, "tp") == 0 || memcmp(str,"tp ",3) == 0)
-	{
-		if(str[2] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šæ˜¾ç¤ºæ–‡ä»¶å†…å®¹*******************************/
+	if (strcmp(str, "tp") == 0 || memcmp(str, "tp ", 3) == 0) {
+		if (str[2] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 		{
 			int count = 0;
-			for(int i=3; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 3)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_TP
+			for (int i = 3; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 3)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_TP
 			{
-				strncpy(cmd.para1, &str[3], len-3);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_TP;
+				strncpy(cmd.para1, &str[3], len - 3);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_TP;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -320,33 +287,30 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£º·ÖÒ³ÏÔÊ¾ÎÄ¼şÄÚÈİ*******************************/
-	if(strcmp(str, "more") == 0 || memcmp(str,"more ",5) == 0)
-	{
-		if(str[4] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šåˆ†é¡µæ˜¾ç¤ºæ–‡ä»¶å†…å®¹*******************************/
+	if (strcmp(str, "more") == 0 || memcmp(str, "more ", 5) == 0) {
+		if (str[4] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 		{
 			int count = 0;
-			for(int i=5; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 5)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_MORE
+			for (int i = 5; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 5)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_MORE
 			{
-				strncpy(cmd.para1, &str[5], len-5);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_MORE;
+				strncpy(cmd.para1, &str[5], len - 5);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_MORE;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -354,10 +318,9 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£º¿½±´ÎÄ¼ş*******************************/
-	if(strcmp(str, "cp") == 0 || memcmp(str,"cp ",3) == 0)
-	{
-		if(str[2] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šæ‹·è´æ–‡ä»¶*******************************/
+	if (strcmp(str, "cp") == 0 || memcmp(str, "cp ", 3) == 0) {
+		if (str[2] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
@@ -365,25 +328,27 @@ Cmd ParsingCommand( )
 		{
 			int count = 0;
 			int pos = 0;
-			for(int i=3; i<len; i++)
-				if(str[i] == ' ')  { ++count;  pos = i; }
-			if(count == 1 && str[len-2] != ' ')		//ÓĞÁ½¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_CP
-			{
-				strncpy(cmd.para1, &str[3], pos-3);		cmd.para1[pos-3] = '\0';
-				strncpy(cmd.para2, &str[pos+1], len-pos-1);
-
-				if(strlen(cmd.para1)<257 && strlen(cmd.para2)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_CP;
-					return cmd;
+			for (int i = 3; i < len; i++)
+				if (str[i] == ' ') {
+					++count;
+					pos = i;
 				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			if (count == 1 && str[len - 2] != ' ')        //æœ‰ä¸¤ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_CP
+			{
+				strncpy(cmd.para1, &str[3], pos - 3);
+				cmd.para1[pos - 3] = '\0';
+				strncpy(cmd.para2, &str[pos + 1], len - pos - 1);
+
+				if (strlen(cmd.para1) < 257 && strlen(cmd.para2) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_CP;
+					return cmd;
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -391,33 +356,30 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî£ºÉ¾³ı×ÓÄ¿Â¼/ÎÄ¼ş*******************************/
-	if(strcmp(str, "dl") == 0 || memcmp(str,"dl ",3) == 0)
-	{
-		if(str[2] == '\0')	//ÎŞ²ÎÊı£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+	/***************************å‘½ä»¤ï¼šåˆ é™¤å­ç›®å½•/æ–‡ä»¶*******************************/
+	if (strcmp(str, "dl") == 0 || memcmp(str, "dl ", 3) == 0) {
+		if (str[2] == '\0')    //æ— å‚æ•°ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 		{
 			cmd.type = TYPE_INVALID_PARAMETER;
 			return cmd;
 		}
 		{
 			int count = 0;
-			for(int i=3; i<len; i++)
-				if(str[i] == ' ')  ++count;
-			if(count == 0 && len-1 > 3)		//ÓĞÒ»¸ö²ÎÊı¡£·µ»ØÃüÁî½âÎö½á¹û£ºTYPE_DL
+			for (int i = 3; i < len; i++)
+				if (str[i] == ' ') ++count;
+			if (count == 0 && len - 1 > 3)        //æœ‰ä¸€ä¸ªå‚æ•°ã€‚è¿”å›å‘½ä»¤è§£æç»“æœï¼šTYPE_DL
 			{
-				strncpy(cmd.para1, &str[3], len-3);
-				if(strlen(cmd.para1)<257)
-				{
-					cmd.flag = 1;		cmd.type = TYPE_DL;
+				strncpy(cmd.para1, &str[3], len - 3);
+				if (strlen(cmd.para1) < 257) {
+					cmd.flag = 1;
+					cmd.type = TYPE_DL;
 					return cmd;
-				}
-				else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+				} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 				{
 					cmd.type = TYPE_INVALID_PARAMETER;
 					return cmd;
 				}
-			}
-			else	//²ÎÊı²»·û£¬·µ»ØÃüÁî½âÎö½á¹ûTYPE_INVALID_PARAMETER
+			} else    //å‚æ•°ä¸ç¬¦ï¼Œè¿”å›å‘½ä»¤è§£æç»“æœTYPE_INVALID_PARAMETER
 			{
 				cmd.type = TYPE_INVALID_PARAMETER;
 				return cmd;
@@ -425,7 +387,7 @@ Cmd ParsingCommand( )
 		}
 	}
 
-	/***************************ÃüÁî²»´æÔÚ*******************************/
+	/***************************å‘½ä»¤ä¸å­˜åœ¨*******************************/
 	{
 		cmd.type = TYPE_NOT_FOUND;
 		return cmd;
@@ -433,26 +395,24 @@ Cmd ParsingCommand( )
 }
 
 /*
-* º¯ÊıÃû£ºConfirm
-*¹¦ÄÜ£ºÃüÁîÖ´ĞĞĞÔÑ¯ÎÊ
-* ²ÎÊı£º¿Õ
-* ·µ»ØÖµ£ºint¡£0ÎªÖ´ĞĞ£¬1Îª²»Ö´ĞĞ
+* å‡½æ•°åï¼šConfirm
+*åŠŸèƒ½ï¼šå‘½ä»¤æ‰§è¡Œæ€§è¯¢é—®
+* å‚æ•°ï¼šç©º
+* è¿”å›å€¼ï¼šintã€‚0ä¸ºæ‰§è¡Œï¼Œ1ä¸ºä¸æ‰§è¡Œ
 */
 EXEC Confirm()
 {
 	char ch1, ch2;
-	for( ;  ;  )
-	{
-		printf("Are you sure to continue? Y or N: ");	//Êä³öÌáÊ¾
+	for( ;  ;  ) {
+		printf("Are you sure to continue? Y or N: ");    //è¾“å‡ºæç¤º
 		ch1 = getchar();
-		if(ch1 == '\n')
+		if (ch1 == '\n')
 			continue;
-		else
-		{
+		else {
 			ch2 = getchar();
-			if( (ch1 == 'Y' || ch1 == 'y') && ch2 == '\n')	//Ö´ĞĞÃüÁî
+			if ((ch1 == 'Y' || ch1 == 'y') && ch2 == '\n')    //æ‰§è¡Œå‘½ä»¤
 				return EXEC_Y;
-			if( (ch1 == 'N' || ch1 == 'n') && ch2 == '\n')	//²»Ö´ĞĞÃüÁî
+			if ((ch1 == 'N' || ch1 == 'n') && ch2 == '\n')    //ä¸æ‰§è¡Œå‘½ä»¤
 				return EXEC_N;
 			fflush(stdin);
 		}

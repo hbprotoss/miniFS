@@ -22,26 +22,26 @@ ERROR_CODE sys(void);
 void help(char *cmd);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-// ¸¨Öúº¯Êı
+// è¾…åŠ©å‡½æ•°
 
 
-// Ã¿1000¿é¸üĞÂÒ»´Î½ø¶ÈÌõ
+// æ¯1000å—æ›´æ–°ä¸€æ¬¡è¿›åº¦æ¡
 #define BAR_UPDATE	1000
-// ½ø¶ÈÌõÑùÊ½£º[==>      ] XX.X%
+// è¿›åº¦æ¡æ ·å¼ï¼š[==>      ] XX.X%
 typedef struct _BAR_INFO {
-	char bar[256];			// ½ø¶ÈÌõÈİÆ÷
-	char progress_chr;		// ½ø¶È×Ö·û
-	char arrow_chr;			// ¼ıÍ·×Ö·û
-	int width;			// "[]"Ö®¼äµÄ¿í¶È
-	float ratio;			// ½ø¶È±ÈÂÊ
-	float last_pos;			// ÉÏÒ»´ÎÎ»ÖÃ£¬ÓÃÓÚ»æÖÆ
-	int str_ratio_offset;		// °Ù·Ö±È×Ö·û´®¿ªÊ¼Î»ÖÃµÄÏÂ±ê
+    char bar[256];            // è¿›åº¦æ¡å®¹å™¨
+    char progress_chr;        // è¿›åº¦å­—ç¬¦
+    char arrow_chr;            // ç®­å¤´å­—ç¬¦
+    int width;            // "[]"ä¹‹é—´çš„å®½åº¦
+    float ratio;            // è¿›åº¦æ¯”ç‡
+    float last_pos;            // ä¸Šä¸€æ¬¡ä½ç½®ï¼Œç”¨äºç»˜åˆ¶
+    int str_ratio_offset;        // ç™¾åˆ†æ¯”å­—ç¬¦ä¸²å¼€å§‹ä½ç½®çš„ä¸‹æ ‡
 } BAR_INFO;
 void InitBar(BAR_INFO *bi, int width, float init_ratio);
 void SetBarPos(BAR_INFO *bi, float new_ratio);
 void PrintBar(BAR_INFO *bi);
 
-inline __int64 GetFileSize(FILE *fp);
+inline long long GetFileSize(FILE *fp);
 
 int WildcardMatches(char *wildcard, char *str);
 
